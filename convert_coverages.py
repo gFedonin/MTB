@@ -1,10 +1,15 @@
+from os import mkdir
+
 import numpy as np
+from os.path import exists
+
+from sklearn.externals.joblib import Parallel, delayed
 
 path_to_coverages = '/export/data/kkuleshov/myc/sra/'
 path_to_ids = './data/Full_subset.txt'
-out_path = './data/coverages_with_percentiles/5/'
-coverage_threshold = 15
-persentile = 5
+out_path = './data/coverages_with_percentiles/t5p5/'
+coverage_threshold = 5
+percentile = 5
 ref_len = 4411532
 
 
@@ -32,19 +37,23 @@ def read_coverage(sample_id):
         if is_good_interval:
             coverages.append((start, str(ref_len)))
     coverage.sort()
-    lower_bound = np.percentile(coverage, persentile)
-    upper_bound = np.percentile(coverage, 100 - persentile)
+    lower_bound = np.percentile(coverage, percentile)
+    upper_bound = np.percentile(coverage, 100 - percentile)
     median = np.percentile(coverage, 50)
-    return lower_bound, median, upper_bound, coverages
+    return sample_id, lower_bound, median, upper_bound, coverages
 
 
 if __name__ == '__main__':
+    if not exists(out_path):
+        mkdir(out_path)
     sample_ids = [sample_id[:-1] for sample_id in open(path_to_ids, 'r').readlines()]
-    for sample_id in sample_ids:
+    tasks = Parallel(n_jobs=-1)(delayed(read_coverage)(sample_id) for sample_id in sample_ids)
+    for task in tasks:
+        sample_id, lower_bound, median, upper_bound, coverages = task
         with open(out_path + sample_id + '.coverage', 'w') as f:
-            lower_bound, median, upper_bound, coverages = read_coverage(sample_id)
+            # lower_bound, median, upper_bound, coverages = read_coverage(sample_id)
             f.write('coverage_threshold\tpercentile,%\tlower_percentile_val\tmedian\tupper_pesentile_val\n')
-            f.write(str(coverage_threshold) + '\t' + str(persentile) + '\t' + str(lower_bound) + '\t' + str(median) + '\t' + str(upper_bound) + '\n')
+            f.write(str(coverage_threshold) + '\t' + str(percentile) + '\t' + str(lower_bound) + '\t' + str(median) + '\t' + str(upper_bound) + '\n')
             f.write('list of 1-based coords of intervals with coverage >= threshold\n')
             for s, e in coverages:
                 f.write(s + '\t' + e + '\n')

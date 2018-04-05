@@ -1,7 +1,7 @@
 path_to_splits = './data/temp/'
-out_path = './data/ancestors_sparse_merged.fasta'
+out_path = './data/ancestors_mc5_merged.fasta'
 
-sequential = False
+sequential = True
 split_num = 144
 
 
@@ -16,13 +16,13 @@ def main():
             else:
                 fragments = []
                 seq_splits.append((name, fragments))
-                fragments.append(line[:-1])
+                fragments.append(line.strip())
     for i in range(1, split_num):
         with open(path_to_splits + 'split_' + str(i) + '.fasta', 'r') as f:
             j = 0
             for line in f.readlines():
                 if line[0] != '>':
-                    seq_splits[j][1].append(line[:-1])
+                    seq_splits[j][1].append(line.strip())
                     j += 1
 
     with open(out_path, 'w') as f:

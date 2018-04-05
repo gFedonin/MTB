@@ -1,12 +1,18 @@
-path_to_aln = './data/snp_aln_with_DR_filtered2.fasta'
-out_path = './data/split_aln_sparse/'
+from os.path import exists
 
-sequential = False
+from os import makedirs
+
+path_to_aln = './data/snp_aln_with_DR_with_pheno_and_snp_mc5.fasta'
+out_path = './data/split_aln_mc5/'
+path_to_subset = ''
+
+sequential = True
 split_num = 144
 
 
 def main():
-
+    if not exists(out_path):
+        makedirs(out_path)
     seq_splits = []
     with open(path_to_aln, 'r') as f:
         name = ''

@@ -1,12 +1,12 @@
-path_to_phenotypes = './data/phenotype_filtered.csv'
-out_path = './data/phenotype_filtered1.csv'
-path_to_ids = './data/sample_ids_filtered2.txt'
+path_to_phenotypes = './data/all_with_pheno.csv'
+out_path = './data/dr_covered_with_pheno_and_snp.csv'
+path_to_ids = './data/dr_covered_with_pheno_and_snp.txt'
 
 if __name__ == '__main__':
     with open(path_to_ids, 'r') as f:
         sample_ids = set()
         for line in f.readlines():
-            sample_ids.add(line[:-1])
+            sample_ids.add(line.strip())
     with open(path_to_phenotypes, 'r') as f:
         pheno = f.readlines()
     with open(out_path, 'w') as f:

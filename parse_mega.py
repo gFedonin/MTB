@@ -2,10 +2,10 @@ import os
 import numpy as np
 from sklearn.externals.joblib import Parallel, delayed
 
-path_to_mega_output = './data/ancestors/'
+path_to_mega_output = './data/ancestors_mc5/'
 out_path = './data/temp/'
 
-split_num = 1
+split_num = 144
 
 
 def parse_single(split):
@@ -18,13 +18,13 @@ def parse_single(split):
                 with open(path_to_mega_output + str(split) + '/' + filename, 'r') as f:
                     f.readline()
                     for line in f.readlines():
-                        s = line[:-1].split()
+                        s = line.strip().split()
                         node_id_to_name[s[1]] = s[0]
                         if s[2] != '-':
                             node_id_to_children[s[1]] = (s[2], s[3])
             elif '.csv' in filename:
                 with open(path_to_mega_output + str(split) + '/' + filename, 'r') as f:
-                    first = f.readline()[:-1]
+                    first = f.readline().strip()
                     s = first.split('Node_')
                     nodes = s[1:]
                     node_seq = []
@@ -58,7 +58,7 @@ def parse_single(split):
                         node_seq[i].append(max_n[i])
                         node_seq[i].append('\n')
                         node_id_to_seq[nodes[i]] = ''.join(node_seq[i])
-    with open(out_path + '/split_' + str(split) + '.fasta', 'w') as f:
+    with open(out_path + 'split_' + str(split) + '.fasta', 'w') as f:
         for node_id, name in node_id_to_name.items():
             f.write('>')
             f.write(name)

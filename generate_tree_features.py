@@ -1,11 +1,12 @@
 from ete3 import Tree
 import os
 
+from os.path import exists
 from sklearn.externals.joblib import Parallel, delayed
 
-path_to_tree = './data/big_tree_filtered2.newick'
-path_to_tree_breaker_output = './data/tree_breaker/'
-out_path = './data/tree_features/'
+path_to_tree = './data/tree_dr_covered_with_pheno_and_snp_mc5_rooted.nw'
+path_to_tree_breaker_output = './data/tree_breaker_mc5_Walker/'
+out_path = './data/tree_features_mc5_Walker/'
 
 min_posterior = 0.5
 
@@ -30,6 +31,8 @@ def gen_features_for_drug(filename, big_tree):
 
 
 def main():
+    if not exists(out_path):
+        os.mkdir(out_path)
     big_tree = Tree(path_to_tree)
     big_tree.set_outgroup('canetti')
 

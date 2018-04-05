@@ -1,6 +1,10 @@
 from Bio.Seq import Seq
+from sklearn.metrics import confusion_matrix, make_scorer
 
-complement = {'A': 'T', 'T': 'A', 'G': 'C', 'C': 'G'}
+complement = {'A': 'T', 'T': 'A', 'G': 'C', 'C': 'G', '-': '-'}
+
+
+aminoacids = ['C', 'D', 'S', 'Q', 'K', 'I', 'P', 'T', 'F', 'N', 'G', 'H', 'L', 'R', 'W', 'A', 'V', 'E', 'Y', 'M']
 
 
 codon_table = {
@@ -25,3 +29,22 @@ for k,v in codon_table.items():
 stop_codons = ['TAA', 'TAG', 'TGA']
 
 start_codons = ['TTG', 'CTG', 'ATG']
+
+drug_names = {'STR': 'Streptomycin', 'INH': 'Isoniazid', 'EMB': 'Ethambutol', 'ETH': 'Ethionamide',
+              'CIP': 'Ciprofloxacin', 'OFX': 'Ofloxacin', 'PZA': 'Pyrazinamide', 'RIF': 'Rifampicin',
+              'AMK': 'Amikacin', 'CAP': 'Capreomycin', 'KAN': 'Kanamycin', 'SM': 'Streptomycin',
+              'MOX': 'Moxifloxacin', 'PTH': 'Prothionamide', 'RPM': 'Rifampicin','AK': 'Amikacin',
+              'FLQ':['Ciprofloxacin', 'Moxifloxacin', 'Ofloxacin'], 'AMI':'Amikacin'}
+              # 'AMI': ['Amikacin', 'Capreomycin', 'Kanamycin']}
+
+
+dr_genes = ['ahpC', 'eis', 'embA', 'embB', 'embC', 'embR', 'fabG1', 'gid', 'gyrA', 'gyrB', 'inhA', 'iniA', 'iniC',
+             'katG', 'manB', 'ndh', 'pncA', 'rmlD', 'rpoB', 'rpsA', 'rpsL', 'rrs', 'tlyA', 'ethR', 'fpbC', 'iniB',
+              'kasA', 'ethA', 'fabD', 'efpA', 'thyA', 'panD', 'accD6', 'fbpC', 'nat', 'folC', 'rrl', 'rpoC', 'ribD', 'rplC']
+
+def tp(y_true, y_pred): return confusion_matrix(y_true, y_pred)[1, 1]
+def tn(y_true, y_pred): return confusion_matrix(y_true, y_pred)[0, 0]
+def fp(y_true, y_pred): return confusion_matrix(y_true, y_pred)[0, 1]
+def fn(y_true, y_pred): return confusion_matrix(y_true, y_pred)[1, 0]
+
+custom_scoring = {'tp' : make_scorer(tp), 'tn' : make_scorer(tn), 'fp' : make_scorer(fp), 'fn' : make_scorer(fn)}

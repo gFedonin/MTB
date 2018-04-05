@@ -4,9 +4,9 @@ from bisect import bisect_left, bisect_right
 
 from sklearn.externals.joblib import Parallel, delayed
 
-path_to_ids = './data/Full_subset_filtered_snp_pheno2.txt'
-path_to_snps = '/data/snps/raw_no_DR/'
-out_path_aln = './data/snp_aln_no_DR_filtered2.fasta'
+path_to_ids = './data/dr_covered_with_pheno_and_snp.txt'
+path_to_snps = './data/snps/raw_no_DR_with_pheno_and_snp_mc5/'
+out_path_aln = './data/snp_aln_no_DR_with_pheno_and_snp_mc5.fasta'
 path_to_mummer = './data/mummer1.aligns'
 path_to_ref = './data/h37rv.fasta'
 
@@ -106,7 +106,7 @@ def read_snps(sample_id):
     with open(path_to_snps + sample_id + '.snp', 'r') as f1:
         lines = f1.readlines()
         for line in lines:
-            s = line[:-1].split('\t')
+            s = line.strip().split('\t')
             snps[int(s[0])] = s[1]
     return sample_id, snps
 
@@ -115,7 +115,7 @@ def main():
     sample_to_snps = {}
     all_snp_pos = set()
 
-    sample_ids = [sample_id[:-1] for sample_id in open(path_to_ids, 'r').readlines()]
+    sample_ids = [sample_id.strip() for sample_id in open(path_to_ids, 'r').readlines()]
 
     h37rv = read_h37rv()
 

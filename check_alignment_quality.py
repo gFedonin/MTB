@@ -2,7 +2,7 @@ import math
 #from Bio import SeqIO
 from sklearn.externals.joblib import Parallel, delayed
 
-path_to_aln = './data/ancestors_sparse_merged.fasta'
+path_to_aln = './data/ancestors_sparse_mc5_merged.fasta'
 
 
 def entropy(i, seqs):
@@ -17,16 +17,10 @@ def entropy(i, seqs):
 
 
 def main():
-    # seqs = SeqIO.parse(open(path_to_aln), 'fasta')
     stat_real = 0
     stat_mega = 0
     real = []
     mega = []
-    # for seq in seqs:
-    #     if 'Node' in seq.name:
-    #         mega.append(seq.seq)
-    #     else:
-    #         real.append(seq.seq)
     with open(path_to_aln, 'r') as f:
         is_mega = True
         for line in f.readlines():
@@ -34,9 +28,9 @@ def main():
                 is_mega = 'Node' in line
             else:
                 if is_mega:
-                    mega.append(line)
+                    mega.append(line.strip())
                 else:
-                    real.append(line)
+                    real.append(line.strip())
 
     aln_len = len(real[0])
     tasks = Parallel(n_jobs=-1)(delayed(entropy)(i, real) for i in range(aln_len))
