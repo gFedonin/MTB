@@ -17,10 +17,12 @@ path_to_pheno_and_trees = data_path + 'reconstructed_mc10_mega_MP/'
 path_to_dictionaries = data_path + 'dictionaries/'
 path_to_snps_list = data_path + 'snp_aln_with_DR_with_pheno_and_snp_mc10_old_rep.txt'
 
-out_path = data_path + 'xparr/mc10_mega_MP/'
+out_path = data_path + 'xparr/mc10_mega_MP_RR/'
 overwrite = True
 
 use_DR_genes_only = False
+print_RR = True
+print_SS = False
 
 
 def extract_dr_genes():
@@ -236,7 +238,7 @@ def main():
     i = 0
     for (dirpath, dirnames, filenames) in os.walk(path_to_pheno_and_trees):
         for drug in dirnames:
-            drug_to_number.append(drug + '\t' + str(i))
+            drug_to_number.append(drug + '\t' + str(i + 1))
             i += 1
             if exists(out_path + drug + '.xparr') and not overwrite:
                 continue
@@ -260,7 +262,12 @@ def main():
                     if parent_pheno != pheno:
                         branch_line.append(parent_pheno + str(i) + pheno)
                     else:
-                        branch_line.append('')
+                        if pheno == 'R' and print_RR:
+                            branch_line.append(pheno + str(i) + pheno)
+                        elif pheno == 'S' and print_SS:
+                            branch_line.append(pheno + str(i) + pheno)
+                        else:
+                            branch_line.append('')
                     branch_line.append(nonsyn)
                     f.write('\t'.join(branch_line))
                     f.write('\n')

@@ -9,6 +9,7 @@ path_to_ids = data_path + 'all_with_pheno_and_snp.txt'
 var_path = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_mc10/'
 out_path = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_mc10_no_phylo_markers/'
 
+
 if __name__ == '__main__':
     if not exists(out_path):
         makedirs(out_path)

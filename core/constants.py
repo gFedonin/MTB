@@ -1,8 +1,8 @@
 from Bio.Seq import Seq
 from sklearn.metrics import confusion_matrix, make_scorer, f1_score, roc_auc_score
 
-data_path = '/export/data/fedonin/MTB/data/'
-# data_path = '../../data/'
+# data_path = '/export/data/fedonin/MTB/data/'
+data_path = '../../data/'
 
 complement = {'A': 'T', 'T': 'A', 'G': 'C', 'C': 'G', '-': '-'}
 

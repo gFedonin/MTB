@@ -8,21 +8,33 @@ from src.core.data_reading import read_h37rv
 from src.phylo_methods.print_XPARR import get_aminoacids_sense, get_aminoacids_antisense, read_all_snps, \
     filter_snp_list, filter_all_aln
 
-path_to_pheno = data_path + 'pheno_mc5_mega_mix/'
-path_to_pheno_and_trees = data_path + 'reconstructed_mc10_mega_MP_mix/'
+first_line = False
+
+if first_line:
+    path_to_pheno = data_path + 'pheno_mc5_mega_first_line/'
+    path_to_pheno_and_trees = data_path + 'reconstructed_mc10_mega_MP_first_line/'
+else:
+    path_to_pheno = data_path + 'pheno_mc5_mega_mix/'
+    path_to_pheno_and_trees = data_path + 'reconstructed_mc10_mega_MP_mix/'
 path_to_ids = data_path + 'dr_covered_with_pheno_and_snp.txt'
 path_to_snps_list = data_path + 'snp_aln_with_DR_with_pheno_and_snp_mc10_old_rep.txt'
 path_to_snps = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_mc10/'
 path_to_alignment = data_path + 'ancestors_mc10_mega_merged.fasta'
+path_to_drug_codes = data_path + 'xparr/mc10_mega_MP/drug_codes.txt'
 
-out_path = data_path + 'xparr/mc10_mega_drugs_vs_drugs_10drugs.xparr'
+if first_line:
+    out_path = data_path + 'xparr/mc10_mega_drugs_vs_drugs_first_line.xparr'
+else:
+    out_path = data_path + 'xparr/mc10_mega_drugs_vs_drugs_10drugs.xparr'
 
 overwrite = True
 thread_num = 32
 
-# drug_names = ('Isoniazid', 'Rifampicin', 'Ethambutol', 'Pyrazinamide', 'Streptomycin')
-drug_names = ('Isoniazid', 'Rifampicin', 'Ethambutol', 'Pyrazinamide', 'Streptomycin', 'Moxifloxacin', 'Ofloxacin',
-              'Amikacin', 'Capreomycin', 'Kanamycin')
+if first_line:
+    drug_names = ('Isoniazid', 'Rifampicin', 'Ethambutol', 'Pyrazinamide', 'Streptomycin')
+else:
+    drug_names = ('Isoniazid', 'Rifampicin', 'Ethambutol', 'Pyrazinamide', 'Streptomycin', 'Moxifloxacin', 'Ofloxacin',
+                  'Amikacin', 'Capreomycin', 'Kanamycin')
 
 
 def read_parents(path_to_pheno_and_trees, drug):
@@ -115,14 +127,22 @@ def main():
     sample_sequences = SeqIO.parse(open(path_to_alignment, 'r'), 'fasta')
     sample_to_seq = filter_all_aln(sample_sequences, index_list)
 
-    drug_to_number = []
-    i = 0
+    drug_to_number = {}
+    if path_to_drug_codes is None:
+        with open(out_path + '.drug_codes', 'w') as f:
+            i = 0
+            for drug in drug_names:
+                drug_to_number[drug] = str(i)
+                f.write(drug + '\t' + str(i))
+                i += 1
+    else:
+        for line in open(path_to_drug_codes).readlines():
+            s = line.strip().split('\t')
+            drug_to_number[s[0]] = s[1]
 
     drug_to_pheno = {}
     drug_to_parents = {}
     for drug in drug_names:
-        drug_to_number.append(drug + '\t' + str(i))
-        i += 1
         sample_to_pheno = read_pheno(path_to_pheno, path_to_pheno_and_trees, drug)
         drug_to_pheno[drug] = sample_to_pheno
         root, parents = read_parents(path_to_pheno_and_trees, drug)
@@ -142,18 +162,16 @@ def main():
             syn = sample_to_mut[node_id]
             branch_line.append(syn)
             nonsyn = []
-            for i in range(len(drug_names)):
-                sample_to_pheno = drug_to_pheno[drug_names[i]]
+            for drug in drug_names:
+                sample_to_pheno = drug_to_pheno[drug]
                 pheno = sample_to_pheno[node_id]
                 parent_pheno = sample_to_pheno[parent_id]
                 if parent_pheno != pheno:
-                    nonsyn.append(parent_pheno + str(i) + pheno)
+                    nonsyn.append(parent_pheno + drug_to_number[drug] + pheno)
             branch_line.append(';'.join(nonsyn))
             branch_line.append(';'.join(nonsyn))
             f.write('\t'.join(branch_line))
             f.write('\n')
-    with open(out_path + '.drug_codes', 'w') as f:
-        f.write('\n'.join(drug_to_number))
 
 
 if __name__ == '__main__':

@@ -161,7 +161,7 @@ def main():
                     pheno = sample_to_pheno[node_id]
                     parent_pheno = sample_to_pheno[parent_id]
                     if parent_pheno != pheno:
-                        branch_line.append(parent_pheno + str(i) + pheno)
+                        branch_line.append(parent_pheno + str(i - 1) + pheno)
                     else:
                         branch_line.append('')
                     branch_line.append(nonsyn)
