@@ -2,7 +2,8 @@ import operator
 import os
 from os.path import exists
 
-from src.core.constants import data_path, ref_len
+from src.core.annotations import read_annotations
+from src.core.constants import data_path, ref_len, upstream_length
 from src.core.data_reading import read_h37rv
 from src.phylo_methods.convert_coordinates_na_to_aa import localize_vars, read_Walker, print_pos
 
@@ -56,6 +57,7 @@ if __name__ == '__main__':
     else:
         indel_list = None
     gene_to_Walker = read_Walker()
+    cds_list = read_annotations(upstream_length)
     for (dirpath, dirnames, filenames) in os.walk(path_to_xparr):
         for filename in filenames:
             i = filename.rfind('.xparr')
@@ -63,7 +65,7 @@ if __name__ == '__main__':
                 drug = filename[0: i]
                 muts, mut_pos, mut_neg = read_xparr(path_to_xparr + filename)
                 muts.sort()
-                pos_to_cds, indel_pos_to_cds = localize_vars(muts, indel_list)
+                pos_to_cds, indel_pos_to_cds = localize_vars(muts, cds_list, indel_list)
                 with open(out_path + drug + '.stat', 'w') as out_f:
                     for pos in muts:
                         if pos > ref_len:

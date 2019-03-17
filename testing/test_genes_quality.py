@@ -6,7 +6,7 @@ import numpy as np
 
 import pysam as ps
 
-from src.core.annotations import read_annotations, CDSType, localize_all_snps
+from src.core.annotations import read_annotations, CDSType, localize_all_variants
 from src.core.constants import data_path, upstream_length, ref_len
 from src.core.data_reading import read_variants
 
@@ -275,7 +275,7 @@ def gene_bam_stat(sample_to_variants, path):
         else:
             pos_to_stat[pos].append(stat)
     print('total pos %d' % len(pos_to_stat))
-    pos_to_cds = localize_all_snps(list(pos_to_stat.keys()), cds_list)
+    pos_to_cds = localize_all_variants(list(pos_to_stat.keys()), cds_list)
     print('localized %d pos' % len(pos_to_cds))
     gene_to_stat = {cds.name: GeneStat() for cds in cds_list}
     print('total genes %d' % len(gene_to_stat))

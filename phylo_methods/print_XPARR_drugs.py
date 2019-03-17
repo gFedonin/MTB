@@ -2,7 +2,7 @@ from Bio import SeqIO
 from os.path import exists
 from sklearn.externals.joblib import Parallel, delayed
 
-from src.core.annotations import CDSType, read_annotations, localize_all_snps
+from src.core.annotations import CDSType, read_annotations, localize_all_variants
 from src.core.constants import data_path, upstream_length
 from src.core.data_reading import read_h37rv
 from src.phylo_methods.print_XPARR import get_aminoacids_sense, get_aminoacids_antisense, read_all_snps, \
@@ -23,12 +23,13 @@ path_to_alignment = data_path + 'ancestors_mc10_mega_merged.fasta'
 path_to_drug_codes = data_path + 'xparr/mc10_mega_MP/drug_codes.txt'
 
 if first_line:
-    out_path = data_path + 'xparr/mc10_mega_drugs_vs_drugs_first_line.xparr'
+    out_path = data_path + 'xparr/mc10_mega_drugs_vs_drugs_RR_first_line.xparr'
 else:
-    out_path = data_path + 'xparr/mc10_mega_drugs_vs_drugs_10drugs.xparr'
+    out_path = data_path + 'xparr/mc10_mega_drugs_vs_drugs_RR_10drugs.xparr'
 
 overwrite = True
 thread_num = 32
+print_RR = True
 
 if first_line:
     drug_names = ('Isoniazid', 'Rifampicin', 'Ethambutol', 'Pyrazinamide', 'Streptomycin')
@@ -118,7 +119,7 @@ def main():
 
     cds_list = read_annotations(upstream_length)
 
-    snp_to_cds = localize_all_snps(snp_pos_list_from_samples, cds_list)
+    snp_to_cds = localize_all_variants(snp_pos_list_from_samples, cds_list)
 
     snp_pos_list_from_alignment = [int(l.strip()) for l in open(path_to_snps_list, 'r').readlines()]
     index_list, pos_list = filter_snp_list(snp_pos_list_from_alignment, all_snp_pos_set, snp_to_cds)
@@ -166,7 +167,7 @@ def main():
                 sample_to_pheno = drug_to_pheno[drug]
                 pheno = sample_to_pheno[node_id]
                 parent_pheno = sample_to_pheno[parent_id]
-                if parent_pheno != pheno:
+                if parent_pheno != pheno or (print_RR and pheno == 'R'):
                     nonsyn.append(parent_pheno + drug_to_number[drug] + pheno)
             branch_line.append(';'.join(nonsyn))
             branch_line.append(';'.join(nonsyn))

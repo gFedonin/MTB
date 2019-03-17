@@ -1,7 +1,7 @@
 from Bio import SeqIO
 from Bio.Seq import Seq
 
-from src.core.annotations import read_annotations, localize_all_snps, CDSType
+from src.core.annotations import read_annotations, localize_all_variants, CDSType
 from src.core.constants import codon_table, codon_table_compl, complement, upstream_length
 
 path_to_annotations = './data/AL123456_rev.gff'
@@ -136,7 +136,7 @@ def main():
             all_snp_pos.append(pos)
             all_snps.append((pos, s[1].upper()))
 
-    snp_to_cds = localize_all_snps(all_snp_pos, cds)
+    snp_to_cds = localize_all_variants(all_snp_pos, cds)
 
     format_snp(all_snps, h37rv, h37rv_compl, snp_to_cds)
 

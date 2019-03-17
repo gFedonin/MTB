@@ -1,4 +1,4 @@
-from src.core.annotations import read_annotations, localize_all_snps
+from src.core.annotations import read_annotations, localize_all_variants
 from src.core.constants import upstream_length, data_path, ref_len
 
 phylogenetic_markers_list_path = '../../data/phylogenetic_markers_converted.csv'
@@ -55,8 +55,8 @@ def print_no_filtered_genes():
                     indel_pos_list.append(int(s[1]))
                     pos_to_indel[int(s[1])] = str(pos)
 
-        snp_pos_to_cds = localize_all_snps(snp_list, cds_list)
-        indel_pos_to_cds = localize_all_snps(indel_pos_list, cds_list)
+        snp_pos_to_cds = localize_all_variants(snp_list, cds_list)
+        indel_pos_to_cds = localize_all_variants(indel_pos_list, cds_list)
         c = 0
         with open('../../res/tree_was/filtered_no_phylogenetc_markers_no_pgrs/' + drug.lower() + '.upper.pvalue.pairs', 'w') as fout:
             for pos, cds in snp_pos_to_cds.items():

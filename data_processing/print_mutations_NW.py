@@ -1,20 +1,22 @@
 from os import mkdir
+import multiprocessing as mp
+from Bio.SubsMat.MatrixInfo import blosum62
 from os.path import exists
 from Bio import SeqIO
 from Bio.Seq import Seq
 from sklearn.externals.joblib import Parallel, delayed
 from Bio import pairwise2
 
-from src.core.annotations import CDSType, read_annotations, localize_all_snps
+from src.core.annotations import CDSType, read_annotations, localize_all_variants
 from src.core.constants import codon_table, codon_table_compl, complement, upstream_length, data_path
 from src.core.data_reading import read_h37rv
 
-path_to_ids = data_path + 'all_with_pheno_and_snp.txt'
-path_to_snps = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_mc10/'
-out_path = data_path + 'snps/annotated_with_DR_with_indel_with_pheno_and_snp_mc10_long_del_pg/'
+path_to_snps = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_no_win_qual_mqm_std3_mqm30_filter_samples_first/'
+path_to_ids = path_to_snps + 'samples_filtered.list'#'all_with_pheno_and_snp.txt'
+out_path = data_path + 'snps/annotated_with_DR_with_indel_with_pheno_and_snp_no_win_qual_mqm_std3_mqm30_long_del_pg_NWds/'
 out_path_snp = out_path + 'all_var_list.csv'
 
-thread_num = 144
+thread_num = 32
 
 
 split_dels = False
@@ -342,7 +344,10 @@ def format_variants(sample_id, variants, ref_seq, ref_seq_compl, snp_to_cds):
             else:
                 translated_old = seq_old.reverse_complement().translate()
                 translated_new = seq_new.reverse_complement().translate()
-            alignment = pairwise2.align.globalxx(str(translated_old), str(translated_new))[0]
+            # alignment = pairwise2.align.globalxx(str(translated_old), str(translated_new))[0]
+            # gap open/extension penalty combination for PAM120 is -16/-4, PAM250 -11/-1, BLOSUM50 -10/-2, BLOSUM62 -7/-1, as recommended by Vingron and Waterman, Mount, and Pearson
+            # alignment = pairwise2.align.globalds(str(translated_old)[:-1], str(translated_new)[:-1], blosum62, -7, -1)[0]
+            alignment = pairwise2.align.globalms(str(translated_old), str(translated_new), 5, -4, -7, -1)[0]
             aln_old = alignment[0]
             aln_new = alignment[1]
             insert_pos = 0
@@ -430,6 +435,7 @@ def format_all_samples(sample_ids, sample_to_snps, ref_seq, ref_seq_compl, snp_t
 
 
 def main():
+    mp.set_start_method('forkserver')
     if not exists(out_path):
         mkdir(out_path)
     sample_to_snps = {}
@@ -437,11 +443,11 @@ def main():
     h37rv = read_h37rv()
     h37rv_compl = str(Seq(h37rv).reverse_complement())
 
-    sample_ids = [sample_id[:-1] for sample_id in open(path_to_ids, 'r').readlines()]
+    sample_ids = [sample_id.strip() for sample_id in open(path_to_ids, 'r').readlines()]
 
     cds_list = read_annotations(upstream_length, filter_by_gene_len=False)
 
-    tasks = Parallel(n_jobs=-1)(
+    tasks = Parallel(n_jobs=thread_num)(
         delayed(read_variants)(sample_id) for sample_id in sample_ids)
     for sample_id, variants in tasks:
         sample_to_snps[sample_id] = variants
@@ -450,7 +456,7 @@ def main():
     all_snps = list(all_snp_pos)
     print('done with variant reading')
 
-    snp_to_cds = localize_all_snps(all_snps, cds_list)
+    snp_to_cds = localize_all_variants(all_snps, cds_list)
 
     formatted_snps = format_all_samples(sample_ids, sample_to_snps, h37rv, h37rv_compl, snp_to_cds)
     print('done with variant format')

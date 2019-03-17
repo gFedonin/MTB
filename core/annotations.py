@@ -154,7 +154,7 @@ def read_annotations(upstream_length, filter_by_gene_len=True):
     return cds_list
 
 
-def localize_all_snps(pos_list: 'list[int]', cds_list: 'list[CDS]', keep_genes_set: 'set[str]'=None) -> 'dict[int, CDS]':
+def localize_all_variants(pos_list: 'list[int]', cds_list: 'list[CDS]', keep_genes_set: 'set[str]'=None) -> 'dict[int, CDS]':
     """
     Finds CDS for each gene coord from all_snps list.
 

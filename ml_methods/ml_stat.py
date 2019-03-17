@@ -13,11 +13,11 @@ from src.core.data_reading import read_pheno, read_subset, read_snp_list
 from src.ml_methods.mtb_predictor import MTBPredictor, MTBPredictorExtended, MTBPredictorPairs
 
 path_to_pheno = data_path + 'pheno_mc5_mega/'
-path_to_var = data_path + 'snps/annotated_with_DR_with_indel_with_pheno_and_snp_mc10_long_del_pg/'
-path_to_ids = data_path + 'dr_covered_with_pheno_and_snp_new.txt'
+path_to_var = data_path + 'snps/annotated_with_DR_with_indel_with_pheno_and_snp_win_qual_mqm_std3_mqm30_long_del_pg_filter_samples_first/'
+path_to_ids = data_path + 'samples_int4.list'#'snps/raw_with_DR_with_indel_with_pheno_and_snp_no_win_m3_filter_samples_first/samples_filtered.list'#'dr_covered_with_pheno_and_snp_new.txt'
 path_to_subsets = data_path + 'subsets/'
 
-log_path = '../../res/ml_log_mc1-noncds_long_del_pg_nh_or_pv_ext_pairs/'
+log_path = '../../res/ml_log_mc1-noncds_long_del_pg_ext_filtered_win_qual_mqm_std3_mqm30_filter_samples_first/'
 
 use_extended_features = True
 merge_all_mut_in_pos = True
@@ -26,11 +26,11 @@ filter_non_cds = True
 drop_pseudogenes = True
 drop_hypothetical = False
 keep_proteomic_validated_only = False
-keep_only_not_hypotetical_or_proteomic_validated = True
+keep_only_not_hypotetical_or_proteomic_validated = False
 upstream_indel_breakes_gene = True
 snp_count_threshold = 1
 
-use_pairs = True
+use_pairs = False
 jaccard_index_threshold = 0.9
 
 thread_num = 32

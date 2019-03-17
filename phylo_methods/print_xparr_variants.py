@@ -12,12 +12,11 @@ path_to_alignment = data_path + 'ancestors_mc10_mega_merged.fasta'
 path_to_pheno_and_trees = data_path + 'reconstructed_mc10_mega_MP/'
 path_to_dictionaries = data_path + 'dictionaries/'
 path_to_snps_list = data_path + 'snp_aln_with_DR_with_pheno_and_snp_mc10_old_rep.txt'
-path_to_target_var_list = '../res/tree_was'
 
-path_to_filtered_snp_pos_list = '../../res/merged_snp.pos'
-path_to_filtered_indel_pos_list = '../../res/merged_indel.pos'
+path_to_target_snp_pos_list = '../../res/merged_snp_pos_RR.list'
+path_to_target_indel_pos_list = '../../res/merged_indel_pos_RR.list'
 
-out_path = data_path + 'xparr/mc10_mega_MP_vars_vs_vars.xparr'
+out_path = data_path + 'xparr/mc10_mega_MP_RR_vars_vs_vars_filtered_frd0.1_pvalue0.05.xparr'
 overwrite = True
 
 print_RR = True
@@ -36,7 +35,7 @@ def read_parents(path_to_pheno_and_trees):
 
 
 def format_variant(sample_id, sample_snp_seq, parent_snp_seq, snp_pos_list, ref_seq, snp_to_cds, sample_indel_seq,
-                   parent_indel_seq, filtered_snp_pos_set, filtered_indel_index_list):
+                   parent_indel_seq, filtered_snp_pos_set, filtered_indel_pos_set):
     nonsyn = []
     syn = []
     j = 0
@@ -76,20 +75,22 @@ def format_variant(sample_id, sample_snp_seq, parent_snp_seq, snp_pos_list, ref_
                 nonsyn.append(parent_snp_seq[j] + str(pos) + sample_snp_seq[j])
         j += 1
     ref_len = len(ref_seq)
-    for j in range(len(parent_indel_seq)):
+    for j in range(0, len(sample_indel_seq)):
         if sample_indel_seq[j] == parent_indel_seq[j]:
             continue
         else:
-            nonsyn.append(str(ref_len + filtered_indel_index_list[j] + 1))
+            i = ref_len + j + 1
+            if i in filtered_indel_pos_set:
+                nonsyn.append(str(i))
     return sample_id, ';'.join(syn), ';'.join(nonsyn)
 
 
 def format_mut_lists(drug, sample_to_snp_seq, snp_pos_list, ref_seq, snp_to_cds, parents, sample_to_indel_seq,
-                     filtered_snp_pos_set, filtered_indel_index_list):
+                     filtered_snp_pos_set, filtered_indel_pos_set):
     formatted_snps = Parallel(n_jobs=-1)(
         delayed(format_variant)(node_id, sample_to_snp_seq[node_id], sample_to_snp_seq[parent_id], snp_pos_list, ref_seq,
                                 snp_to_cds, sample_to_indel_seq[node_id], sample_to_indel_seq[parent_id],
-                                filtered_snp_pos_set, filtered_indel_index_list)
+                                filtered_snp_pos_set, filtered_indel_pos_set)
         for node_id, parent_id, dist in parents
     )
     print('done with variant format for ' + drug)
@@ -116,28 +117,15 @@ def main():
         filter_all_variants(snp_pos_list_from_alignment, all_snp_pos_set, indel_list_from_alignment,
                         all_indels_set_from_samples, use_DR_genes_only)
 
-    filtered_snp_pos_set = set(int(line.strip()) for line in open(path_to_filtered_snp_pos_list).readlines())
-    filtered_indel_pos_set = set(int(line.strip()) for line in open(path_to_filtered_indel_pos_list).readlines())
+    filtered_snp_pos_set = set(int(line.strip()) for line in open(path_to_target_snp_pos_list).readlines())
+    filtered_indel_pos_set = set(int(line.strip()) for line in open(path_to_target_indel_pos_list).readlines())
 
-    filtered_indel_index_list = []
-    filtered_filtered_indel_list = []
-    for i in range(len(indel_index_list)):
-        index = indel_index_list[i]
-        pos = int(indel_list_from_alignment[index].split('_')[1])
-        if pos in filtered_indel_pos_set:
-            filtered_indel_index_list.append(i)
-            filtered_filtered_indel_list.append(indel_list_from_alignment[index])
-
-    # with open(out_path + 'indel_list.txt', 'w') as f:
-    #     f.write('\n'.join(filtered_filtered_indel_list))
-    #     f.write('\n')
-
-    sample_to_snp_seq, sample_to_indel_seq = filter_alignments(snp_index_list, filtered_indel_index_list)
+    sample_to_snp_seq, sample_to_indel_seq = filter_alignments(snp_index_list, indel_index_list)
 
     root, parents = read_parents(path_to_pheno_and_trees)
 
     sample_to_mut = format_mut_lists('all', sample_to_snp_seq, pos_list, ref_seq, snp_to_cds, parents,
-                                     sample_to_indel_seq, filtered_snp_pos_set, filtered_indel_index_list)
+                                     sample_to_indel_seq, filtered_snp_pos_set, filtered_indel_pos_set)
 
     with open(out_path, 'w') as f:
         f.write("child\tparent\tlength\n")

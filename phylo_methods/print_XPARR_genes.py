@@ -4,7 +4,7 @@ from os.path import exists
 from sklearn.externals.joblib import Parallel, delayed
 import os
 
-from src.core.annotations import read_annotations, localize_all_snps, CDSType
+from src.core.annotations import read_annotations, localize_all_variants, CDSType
 from src.core.constants import upstream_length, data_path
 from src.core.data_reading import read_h37rv
 from src.phylo_methods.print_XPARR import read_all_snps, filter_snp_list, get_aminoacids_sense, \
@@ -127,7 +127,7 @@ def main():
         f.write('\n'.join(gene_list))
         f.write('\n')
 
-    snp_to_cds = localize_all_snps(snp_pos_list, cds_list)
+    snp_to_cds = localize_all_variants(snp_pos_list, cds_list)
 
     index_list, pos_list = filter_snp_list(path_to_snps_list, all_snp_pos, snp_to_cds)
 

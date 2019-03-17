@@ -3,7 +3,7 @@ from os.path import exists
 from sklearn.externals.joblib import Parallel, delayed
 import os
 
-from src.core.annotations import CDSType, read_annotations, localize_all_snps
+from src.core.annotations import CDSType, read_annotations, localize_all_variants
 from src.core.constants import upstream_length, data_path
 from src.core.data_reading import read_h37rv
 from src.phylo_methods.print_XPARR import get_aminoacids_sense, get_aminoacids_antisense, read_pheno, filter_snp_list
@@ -88,12 +88,12 @@ def format_mut_lists(drug, sample_to_snp_seq, snp_pos_list, ref_seq, snp_to_cds,
 def filter_all_variants(snp_pos_list_from_alignment, snp_pos_set_from_samples, indel_list_from_alignment,
                         all_indels_set_from_samples):
     cds_list = read_annotations(upstream_length)
-    snp_to_cds = localize_all_snps(snp_pos_list_from_alignment, cds_list)
+    snp_to_cds = localize_all_variants(snp_pos_list_from_alignment, cds_list)
     indel_pos_set = set()
     for m in indel_list_from_alignment:
         indel_pos_set.add(int(m.split('_')[1]))
     indel_pos_list = list(indel_pos_set)
-    indel_to_cds = localize_all_snps(indel_pos_list, cds_list)
+    indel_to_cds = localize_all_variants(indel_pos_list, cds_list)
     snp_index_list, pos_list = filter_snp_list(snp_pos_list_from_alignment, snp_pos_set_from_samples)
     indel_index_list, filtered_indel_list = filter_indel_list(indel_list_from_alignment, all_indels_set_from_samples,
                                                               indel_to_cds)

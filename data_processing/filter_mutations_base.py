@@ -10,8 +10,8 @@ from src.core.constants import upstream_length, dr_genes, data_path, ref_len
 
 path_to_ids = data_path + 'all_with_pheno_and_snp.txt'#'test.list'
 path_to_snps = data_path + 'snps/realigned_vcfs_indels_all/'
-out_path = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_no_win_qual_mqm_std3_mqm30_no_highcov/'
-out_path_win_cov = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_win_cov_m3_filter_samples_first/'
+out_path = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_no_win_m3/'
+out_path_win_cov = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_no_win_cov_m3/'
 out_path_variants = out_path + 'filtered_raw_variants_pos.csv'
 out_path_variants_with_low_cov = out_path + 'low_covered_raw_variants_pos.csv'
 out_path_filtered_samples = out_path + 'samples_filtered.list'
@@ -19,23 +19,16 @@ out_path_samplies_with_low_coverage = out_path + 'samples_low_covered.list'
 path_to_depths = data_path + 'coverages_shrinked/'#''/export/data/kkuleshov/myc/sra/'
 path_to_annotations = data_path + 'AL123456_rev.gff'
 
-qual_threshold = 40
-filter_by_quality_std = True
-quality_std_multiplier = 3
-filter_by_MQM = True
-mqm_threshold = 30
-filter_by_MQM_std = True
-mqm_std_multiplier = 3
+qual_thresold = 40
 variant_cov_threshold = 10
 sample_cov_threshold = 0.9
 
-filter_overcovered_positions = False
+filter_overcovered_positions = True
 coverage_std_multiplier = 3  # set to x for coverage_std_threshold = x * std(coverage)
 filter_out_DR_genes = False
 snp_only = False
 filter_by_window_coverage = False
 filter_by_window_genes_only = False
-print_coverage_statistics = False
 window_len_gene = 400
 window_len_nc = 50
 window_min_cov_threshold = 10
@@ -133,14 +126,11 @@ def read_vcf_file(sample_id):
                 i = info.index('TYPE=')
                 j = info.index(';', i + 5)
                 v_type = info[i + 5: j]
-                i = info.index('MQM=')
-                j = info.index(';', i + 4)
-                mqm = float(info[i + 4: j])
                 pos = int(tokens[1])
                 alt = tokens[4]
                 if v_type == 'snp':
                     if len(alt) == 1:
-                        variants.append((pos, alt, v_type, cov, qual, mqm))
+                        variants.append((pos, alt, v_type, cov, qual))
                     else:
                         i = info.index('CIGAR=')
                         j = info.index(';', i + 6)
@@ -152,7 +142,7 @@ def read_vcf_file(sample_id):
                                 p += l
                             elif o == 'X':
                                 for n in range(l):
-                                    variants.append((pos, alt[p], 'snp', cov, qual, mqm))
+                                    variants.append((pos, alt[p], 'snp', cov, qual))
                                     pos += 1
                                     p += 1
                 else:
@@ -166,15 +156,15 @@ def read_vcf_file(sample_id):
                             p += l
                         elif o == 'X':
                             for n in range(l):
-                                variants.append((pos, alt[p], 'snp', cov, qual, mqm))
+                                variants.append((pos, alt[p], 'snp', cov, qual))
                                 pos += 1
                                 p += 1
                         elif o == 'D':
                             for n in range(l):
-                                variants.append((pos, '-', 'del', cov, qual, mqm))
+                                variants.append((pos, '-', 'del', cov, qual))
                                 pos += 1
                         elif o == 'I':
-                            variants.append((pos, alt[p: p + l], 'ins', cov, qual, mqm))
+                            variants.append((pos, alt[p: p + l], 'ins', cov, qual))
                             p += l
     return sample_id, variants
 
@@ -248,30 +238,15 @@ def filter_variants(sample_id, all_variants_pos_list, variants, filter_intervals
     coverage = read_cov_file(sample_id)
     std_coverage = np.std(coverage)
     mean_coverage = np.mean(coverage)
-    qualities = np.zeros(len(variants))
-    mqm_list = np.zeros(len(variants))
     filter_intervals_starts = [x[0] for x in filter_intervals]
-    i = 0
-    for pos, alt, type, cov, qual, mqm in variants:
-        qualities[i] = qual
-        mqm_list[i] = mqm
-        i += 1
-    mean_quality = np.mean(qualities)
-    std_quality = np.std(qualities)
-    mean_mqm = np.mean(mqm_list)
-    std_mqm = np.std(mqm_list)
-    for pos, alt, type, cov, qual, mqm in variants:
+    for pos, alt, type, cov, qual in variants:
         cds = pos_to_cds.get(pos)
-        if qual >= qual_threshold and cov >= variant_cov_threshold:
+        win_undercovered, win_overcovered, win_bigstdcov = window_is_covered(pos, coverage, mean_coverage, std_coverage,
+                                                                             cds, filter_by_window_genes_only)
+        if qual >= qual_thresold and cov >= variant_cov_threshold:
             if filter_overcovered_positions and cov > mean_coverage + coverage_std_multiplier*std_coverage:
                 continue
-            if filter_by_MQM and mqm < mqm_threshold:
-                continue
-            if snp_only and type != 'snp':
-                continue
-            if filter_by_quality_std and qual < mean_quality - quality_std_multiplier*std_quality:
-                continue
-            if filter_by_MQM_std and mqm < mean_mqm - mqm_std_multiplier*std_mqm:
+            if type != 'snp' and snp_only:
                 continue
             inside_filtered_interval = False
             i = bisect_left(filter_intervals_starts, pos)
@@ -283,11 +258,8 @@ def filter_variants(sample_id, all_variants_pos_list, variants, filter_intervals
                     inside_filtered_interval = True
             if inside_filtered_interval:
                 continue
-            if filter_by_window_coverage:
-                win_undercovered, win_overcovered, win_bigstdcov = window_is_covered(pos, coverage, mean_coverage,
-                                                                        std_coverage, cds, filter_by_window_genes_only)
-                if (win_overcovered or win_undercovered or win_bigstdcov):
-                    continue
+            if filter_by_window_coverage and (win_overcovered or win_undercovered or win_bigstdcov):
+                continue
             filtered_variants.append((pos, alt, type))
     for i in range(len(all_variants_pos_list)):
         pos = all_variants_pos_list[i]
@@ -300,60 +272,43 @@ def filter_variants(sample_id, all_variants_pos_list, variants, filter_intervals
         if filter_overcovered_positions and cov > mean_coverage + coverage_std_multiplier*std_coverage:
             is_properly_covered[i] = False
             pos_is_overcovered[i] = True
-        if filter_by_window_coverage:
-            win_is_undercovered[i], win_is_overcovered[i], win_has_big_std_cov[i] = \
-                window_is_covered(pos, coverage, mean_coverage, std_coverage, cds, filter_by_window_genes_only)
+        win_is_undercovered[i], win_is_overcovered[i], win_has_big_std_cov[i] = \
+            window_is_covered(pos, coverage, mean_coverage, std_coverage, cds, filter_by_window_genes_only)
         if filter_by_window_coverage and (win_is_undercovered[i] or win_is_overcovered[i] or win_has_big_std_cov[i]):
             is_properly_covered[i] = False
         # is_properly_covered[i] = 1
-    if print_coverage_statistics:
-        with open(out_path_win_cov + sample_id + '.cov', 'w') as f:
-            f.write('pos\tis_properly_covered\tpos_is_undercovered\tpos_is_overcovered\twin_is_undercovered\t'
-                    'win_is_overcovered\twin_has_big_std_cov\n')
-            for i in range(len(all_variants_pos_list)):
-                pos = all_variants_pos_list[i]
-                f.write(str(pos) + '\t')
-                if is_properly_covered[i]:
-                # if is_properly_covered[i] == 1:
-                    f.write('1\t')
-                else:
-                    f.write('0\t')
-                if pos_is_undercovered[i]:
-                    f.write('1\t')
-                else:
-                    f.write('0\t')
-                if pos_is_overcovered[i]:
-                    f.write('1\t')
-                else:
-                    f.write('0\t')
-                if win_is_undercovered[i]:
-                    f.write('1\t')
-                else:
-                    f.write('0\t')
-                if win_is_overcovered[i]:
-                    f.write('1\t')
-                else:
-                    f.write('0\t')
-                if win_has_big_std_cov[i]:
-                    f.write('1\n')
-                else:
-                    f.write('0\n')
+    with open(out_path_win_cov + sample_id + '.cov', 'w') as f:
+        f.write('pos\tis_properly_covered\tpos_is_undercovered\tpos_is_overcovered\twin_is_undercovered\t'
+                'win_is_overcovered\twin_has_big_std_cov\n')
+        for i in range(len(all_variants_pos_list)):
+            pos = all_variants_pos_list[i]
+            f.write(str(pos) + '\t')
+            if is_properly_covered[i]:
+            # if is_properly_covered[i] == 1:
+                f.write('1\t')
+            else:
+                f.write('0\t')
+            if pos_is_undercovered[i]:
+                f.write('1\t')
+            else:
+                f.write('0\t')
+            if pos_is_overcovered[i]:
+                f.write('1\t')
+            else:
+                f.write('0\t')
+            if win_is_undercovered[i]:
+                f.write('1\t')
+            else:
+                f.write('0\t')
+            if win_is_overcovered[i]:
+                f.write('1\t')
+            else:
+                f.write('0\t')
+            if win_has_big_std_cov[i]:
+                f.write('1\n')
+            else:
+                f.write('0\n')
     return sample_id, filtered_variants, is_properly_covered
-
-
-def filter_sample_list(all_variants_pos_list, sample_to_variants, filter_intervals, pos_to_cds, snp_only,
-                    filter_overcovered_positions, coverage_std_multiplier, filter_by_window_coverage,
-                    filter_by_window_genes_only):
-    sample_to_cov = {}
-    sample_to_vars = {}
-    for sample_id, variants in sample_to_variants.items():
-        sample_id, filtered_variants, is_properly_covered = filter_variants(sample_id, all_variants_pos_list,
-                    variants, filter_intervals, pos_to_cds, snp_only,
-                    filter_overcovered_positions, coverage_std_multiplier, filter_by_window_coverage,
-                    filter_by_window_genes_only)
-        sample_to_vars[sample_id] = filtered_variants
-        sample_to_cov[sample_id] = is_properly_covered
-    return sample_to_vars, sample_to_cov
 
 
 def read_all_data(sample_ids, filter_overcovered_positions, coverage_std_multiplier, snp_only,
@@ -373,12 +328,10 @@ def read_all_data(sample_ids, filter_overcovered_positions, coverage_std_multipl
 
     filter_intervals = get_intervals_to_filter_out(filter_out_DR_genes)
     filter_intervals.sort(key=lambda tup: tup[0])
-    sample_to_variants = {}
-    tasks = Parallel(n_jobs=thread_num)(delayed(read_vcf_file)(sample_id) for sample_id in sample_ids)
+    sample_to_variants = Parallel(n_jobs=thread_num)(delayed(read_vcf_file)(sample_id) for sample_id in sample_ids)
     all_snp_pos = set()
-    for sample_id, variants in tasks:
-        sample_to_variants[sample_id] = variants
-        for pos, alt, type, cov, qual, mqm in variants:
+    for sample_id, variants in sample_to_variants:
+        for pos, alt, type, cov, qual in variants:
             all_snp_pos.add(pos)
     all_variants_pos_list = list(all_snp_pos)
     all_variants_pos_list.sort()
@@ -386,43 +339,30 @@ def read_all_data(sample_ids, filter_overcovered_positions, coverage_std_multipl
     cds_list = read_annotations(upstream_length)
     pos_to_cds = localize_all_variants(all_variants_pos_list, cds_list)
 
-    sample_lists = {i: {} for i in range(thread_num)}
-    for i in range(len(sample_ids)):
-        sample_id = sample_ids[i]
-        sample_to_vars = sample_lists[i%thread_num]
-        sample_to_vars[sample_id] = sample_to_variants[sample_id]
-
-    # tasks = Parallel(n_jobs=thread_num, batch_size=len(sample_ids)//thread_num + 1)(delayed(filter_variants)(sample_id, all_variants_pos_list, variants,
-    #             filter_intervals, pos_to_cds, snp_only, filter_overcovered_positions, coverage_std_multiplier,
-    #             filter_by_window_coverage, filter_by_window_genes_only) for sample_id, variants in sample_to_variants.items())
-    tasks = Parallel(n_jobs=thread_num)(delayed(filter_sample_list)(all_variants_pos_list, sample_vars,
+    tasks = Parallel(n_jobs=thread_num)(delayed(filter_variants)(sample_id, all_variants_pos_list, variants,
                 filter_intervals, pos_to_cds, snp_only, filter_overcovered_positions, coverage_std_multiplier,
-                filter_by_window_coverage, filter_by_window_genes_only) for sample_vars in sample_lists.values())
+                filter_by_window_coverage, filter_by_window_genes_only) for sample_id, variants in sample_to_variants)
 
     sample_to_cov = {}
     sample_to_variants = {}
     all_snp_pos.clear()
-
-    for sample_to_vars, sample_to_c in tasks:
-        sample_to_variants.update(sample_to_vars)
-        sample_to_cov.update(sample_to_c)
-
-    # for sample_id, filtered_variants, is_properly_covered in tasks:
-    #     sample_to_variants[sample_id] = filtered_variants
-    #     sample_to_cov[sample_id] = is_properly_covered
-    #     for pos, alt, type in filtered_variants:
-    #         all_snp_pos.add(pos)
-    for sample_id, filtered_variants in sample_to_variants.items():
+    for sample_id, filtered_variants, is_properly_covered in tasks:
+        sample_to_variants[sample_id] = filtered_variants
+        sample_to_cov[sample_id] = is_properly_covered
         for pos, alt, type in filtered_variants:
             all_snp_pos.add(pos)
     print('data reading done')
     print('%d total variants after filtering' % len(all_snp_pos))
-    return sample_to_variants, all_variants_pos_list, sample_to_cov, all_snp_pos
+    return sample_to_variants, all_variants_pos_list, sample_to_cov
 
 
-def print_config():
+def main():
+    if not exists(out_path):
+        makedirs(out_path)
+    if not exists(out_path_win_cov):
+        makedirs(out_path_win_cov)
     with open(out_path + 'config.txt', 'w') as f:
-        f.write('qual_thresold = ' + str(qual_threshold) + '\n')
+        f.write('qual_thresold = ' + str(qual_thresold) + '\n')
         f.write('snp_cov_threshold = ' + str(variant_cov_threshold) + '\n')
         f.write('sample_cov_threshold = ' + str(sample_cov_threshold) + '\n')
         f.write('gene_upstream_threshold = ' + str(upstream_length) + '\n')
@@ -430,12 +370,6 @@ def print_config():
         f.write('snp only = ' + str(snp_only) + '\n')
         f.write('filter_overcovered_positions = ' + str(filter_overcovered_positions) + '\n')
         f.write('coverage_std_multiplier = ' + str(coverage_std_multiplier) + '\n')
-        f.write('filter_by_MQM = ' + str(filter_by_MQM) + '\n')
-        f.write('mqm_threshold = ' + str(mqm_threshold) + '\n')
-        f.write('filter_by_quality_std = ' + str(filter_by_quality_std) + '\n')
-        f.write('quality_std_multiplier = ' + str(quality_std_multiplier) + '\n')
-        f.write('filter_by_MQM_std = ' + str(filter_by_MQM_std) + '\n')
-        f.write('mqm_std_multiplier = ' + str(mqm_std_multiplier) + '\n')
         f.write('filter_by_window_coverage = ' + str(filter_by_window_coverage) + '\n')
         f.write('window_len_gene = ' + str(window_len_gene) + '\n')
         f.write('window_len_nc = ' + str(window_len_nc) + '\n')
@@ -444,60 +378,19 @@ def print_config():
         f.write('window_std_cov_threshold = ' + str(window_std_cov_threshold) + '\n')
         f.write('filter_by_window_genes_only = ' + str(filter_by_window_genes_only) + '\n')
 
-
-def main():
-    if not exists(out_path):
-        makedirs(out_path)
-    if print_coverage_statistics:
-        if not exists(out_path_win_cov):
-            makedirs(out_path_win_cov)
-    print_config()
-
     sample_ids = [sample_id.strip() for sample_id in open(path_to_ids, 'r').readlines()]
     sample_num = len(sample_ids)
 
-    sample_to_variants, all_variants_pos_list, sample_to_cov, all_filtered_variant_poses = read_all_data(sample_ids,
+    sample_to_variants, all_variants_pos_list, sample_to_cov = read_all_data(sample_ids,
                                         filter_overcovered_positions, coverage_std_multiplier, snp_only,
                                                         filter_out_DR_genes, filter_by_window_coverage,
                                                                              filter_by_window_genes_only)
     variant_pos_num = len(all_variants_pos_list)
 
-    uncovered_variant_pos = set(pos for pos in all_variants_pos_list if pos not in all_filtered_variant_poses)
+    uncovered_variant_pos = set()
     uncovered_samples = set()
 
-    pos_counts = {}
-    for sample_id, variants in sample_to_variants.items():
-        for pos, alt, v_type in variants:
-            c = pos_counts.get(pos)
-            if c is None:
-                pos_counts[pos] = 1
-            else:
-                pos_counts[pos] = c + 1
-
     while len(uncovered_samples) < sample_num and len(uncovered_variant_pos) < variant_pos_num:
-        filtered_variant_pos_num = variant_pos_num - len(uncovered_variant_pos)
-        if filtered_variant_pos_num == 0:
-            break
-        uncovered_samples_added = False
-        for sample_id, is_properly_covered in sample_to_cov.items():
-            if sample_id in uncovered_samples:
-                continue
-            properly_covered_pos_num = 0
-            for i in range(variant_pos_num):
-                pos = all_variants_pos_list[i]
-                if pos not in uncovered_variant_pos and is_properly_covered[i]:
-                # if pos not in uncovered_variant_pos and is_properly_covered[i] == 1:
-                    properly_covered_pos_num += 1
-            if properly_covered_pos_num/filtered_variant_pos_num < sample_cov_threshold:
-                uncovered_samples.add(sample_id)
-                for pos, alt, v_type in sample_to_variants[sample_id]:
-                    c = pos_counts[pos] - 1
-                    if c == 0:
-                        uncovered_variant_pos.add(pos)
-                        filtered_variant_pos_num -= 1
-                    else:
-                        pos_counts[pos] = c
-                uncovered_samples_added = True
         snp_cov = np.zeros(variant_pos_num, dtype=int)
         for sample_id, is_properly_covered in sample_to_cov.items():
             if sample_id in uncovered_samples:
@@ -514,6 +407,22 @@ def main():
             if pos not in uncovered_variant_pos and snp_cov[i]/filtered_sample_num < sample_cov_threshold:
                 uncovered_variant_pos.add(pos)
                 uncovered_pos_added = True
+        uncovered_samples_added = False
+        filtered_variant_pos_num = variant_pos_num - len(uncovered_variant_pos)
+        if filtered_variant_pos_num == 0:
+            break
+        for sample_id, is_properly_covered in sample_to_cov.items():
+            if sample_id in uncovered_samples:
+                continue
+            properly_covered_pos_num = 0
+            for i in range(variant_pos_num):
+                pos = all_variants_pos_list[i]
+                if pos not in uncovered_variant_pos and is_properly_covered[i]:
+                # if pos not in uncovered_variant_pos and is_properly_covered[i] == 1:
+                    properly_covered_pos_num += 1
+            if properly_covered_pos_num/filtered_variant_pos_num < sample_cov_threshold:
+                uncovered_samples.add(sample_id)
+                uncovered_samples_added = True
         if not uncovered_pos_added and not uncovered_samples_added:
             break
 

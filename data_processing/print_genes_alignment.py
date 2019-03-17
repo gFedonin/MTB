@@ -2,7 +2,7 @@ from Bio import SeqIO
 
 from sklearn.externals.joblib import Parallel, delayed
 
-from src.core.annotations import read_annotations, localize_all_snps, CDSType
+from src.core.annotations import read_annotations, localize_all_variants, CDSType
 from src.core.constants import upstream_length
 
 path_to_ids = './data/Full_subset_filtered_snp_pheno2.txt'
@@ -134,7 +134,7 @@ def main():
             all_snp_pos.add(snp_pos)
     all_snps = list(all_snp_pos)
 
-    snp_to_cds = localize_all_snps(all_snps, cds)
+    snp_to_cds = localize_all_variants(all_snps, cds)
 
     snps_in_genes = []
     for snp in all_snps:

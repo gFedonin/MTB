@@ -5,7 +5,7 @@ from Bio.Seq import Seq
 from os.path import exists
 from sklearn.externals.joblib import Parallel, delayed
 
-from src.core.annotations import CDSType, localize_all_snps, read_annotations
+from src.core.annotations import CDSType, localize_all_variants, read_annotations
 from src.core.constants import codon_table_compl, complement, codon_table, upstream_length
 
 path_to_ids = '../../data/all_with_pheno_and_snp.txt'
@@ -176,7 +176,7 @@ def main():
     all_snps = list(all_snp_pos)
     print('done with snp')
 
-    snp_to_cds = localize_all_snps(all_snps, cds)
+    snp_to_cds = localize_all_variants(all_snps, cds)
 
     formatted_snps = Parallel(n_jobs=-1)(
         delayed(format_variant)(sample_id, snps, h37rv, h37rv_compl, snp_to_cds)

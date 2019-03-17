@@ -3,7 +3,7 @@ from os.path import exists
 from sklearn.externals.joblib import Parallel, delayed
 import os
 
-from src.core.annotations import read_annotations, localize_all_snps, CDSType
+from src.core.annotations import read_annotations, localize_all_variants, CDSType
 from src.core.constants import codon_table, codon_table_compl, upstream_length, data_path
 from src.core.data_reading import read_dict, read_h37rv
 
@@ -305,9 +305,9 @@ def main():
 
     if use_DR_genes_only:
         drug_to_gene_set, all_dr_genes = extract_dr_genes()
-        snp_to_cds = localize_all_snps(snp_pos_list_from_samples, cds_list, all_dr_genes)
+        snp_to_cds = localize_all_variants(snp_pos_list_from_samples, cds_list, all_dr_genes)
     else:
-        snp_to_cds = localize_all_snps(snp_pos_list_from_samples, cds_list)
+        snp_to_cds = localize_all_variants(snp_pos_list_from_samples, cds_list)
 
     snp_pos_list_from_alignment = [int(l.strip()) for l in open(path_to_snps_list, 'r').readlines()]
     index_list, pos_list = filter_snp_list(snp_pos_list_from_alignment, all_snp_pos_set, snp_to_cds)

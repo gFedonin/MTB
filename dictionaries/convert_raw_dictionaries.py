@@ -3,22 +3,22 @@ from os import makedirs
 from os.path import exists
 
 from src.core.annotations import read_annotations, CDSType
-from src.core.constants import upstream_length
+from src.core.constants import upstream_length, data_path
 
-path_to_Walker_dict = './data/dictionaries_raw/Walker_dictionary.txt'
-path_to_annotations = './data/AL123456_rev.gff'
-out_path = './data/dictionaries_indels/Walker_dictionary.txt'
+path_to_Walker_dict = data_path + 'dictionaries_raw/Walker_dictionary.txt'
+out_path = data_path + 'dictionaries_indels/Walker_dictionary_with_indels.txt'
 
 
 def main():
-    cds_list = read_annotations(path_to_annotations, upstream_length)
+    cds_list = read_annotations(upstream_length)
     name_to_cds = {}
     for cds in cds_list:
         if cds.type == CDSType.upstream:
             continue
         name_to_cds[cds.name] = cds
-        if cds.synonym != '':
-            name_to_cds[cds.synonym] = cds
+        if cds.synonym is not None:
+            for syn in  cds.synonym:
+                name_to_cds[syn] = cds
     with open(out_path, 'w') as f:
         for line in open(path_to_Walker_dict, 'r').readlines():
             l = line.strip().split('\t')

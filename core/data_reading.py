@@ -1,4 +1,5 @@
 from Bio import SeqIO
+from sklearn.externals.joblib import Parallel, delayed
 
 from src.core.constants import drug_names, data_path
 
@@ -77,9 +78,9 @@ def read_dict(path_to_dict: 'str', name: 'str')->'tuple[str, dict[str, list[str]
     return name, drug_to_mut_list
 
 
-def read_variants(path_to_snp, sample_id, filter_set=None, keep_type=True):
-    snp_list = []
-    with open(path_to_snp + sample_id + '.variants', 'r') as f:
+def read_variants(path_to_varints, sample_id, filter_set=None, keep_type=True):
+    var_list = []
+    with open(path_to_varints + sample_id + '.variants', 'r') as f:
         for line in f.readlines():
             l = line.strip()
             if not keep_type:
@@ -88,7 +89,16 @@ def read_variants(path_to_snp, sample_id, filter_set=None, keep_type=True):
             if l != '':
                 if filter_set is not None:
                     if l in filter_set:
-                        snp_list.append(l)
+                        var_list.append(l)
                 else:
-                    snp_list.append(l)
-    return sample_id, snp_list
+                    var_list.append(l)
+    return sample_id, var_list
+
+
+def read_all_variants(path_to_variants, sample_ids, filter_set=None, keep_type=True):
+    sample_to_variants = {}
+    tasks = Parallel(n_jobs=-1)(delayed(read_variants)(path_to_variants, sample_id, filter_set, keep_type)
+                                for sample_id in sample_ids)
+    for sample_id, var_list in tasks:
+        sample_to_variants[sample_id] = var_list
+    return sample_to_variants
