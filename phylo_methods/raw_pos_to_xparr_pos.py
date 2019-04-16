@@ -1,7 +1,7 @@
 from src.core.annotations import read_annotations, localize_all_variants, CDSType
 from src.core.constants import data_path, upstream_length, ref_len
 
-filter_path = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_no_win_qual_mqm_std3_mqm30_no_highcov/'
+filter_path = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_no_win_qual_mqm_std3_mqm30_no_highcov_str10/'
 path_to_raw_pos_list = filter_path + 'filtered_raw_variants_pos.csv'
 path_to_indels = data_path + 'xparr/mc10_mega_MP/indel_list.txt'
 

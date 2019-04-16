@@ -10,7 +10,7 @@ from src.core.constants import upstream_length, dr_genes, data_path, ref_len
 
 path_to_ids = data_path + 'all_with_pheno_and_snp.txt'#'test.list'
 path_to_snps = data_path + 'snps/realigned_vcfs_indels_all/'
-out_path = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_no_win_qual_mqm_std3_mqm30_no_highcov/'
+out_path = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_no_win_qual_mqm_std3_mqm30_no_highcov_str10/'
 out_path_win_cov = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_win_cov_m3_filter_samples_first/'
 out_path_variants = out_path + 'filtered_raw_variants_pos.csv'
 out_path_variants_with_low_cov = out_path + 'low_covered_raw_variants_pos.csv'
@@ -19,6 +19,8 @@ out_path_samplies_with_low_coverage = out_path + 'samples_low_covered.list'
 path_to_depths = data_path + 'coverages_shrinked/'#''/export/data/kkuleshov/myc/sra/'
 path_to_annotations = data_path + 'AL123456_rev.gff'
 
+filter_short_repeats = True
+path_to_short_tandem_repeats = data_path + 'h37rv.fasta.2.7.7.80.10.20.10.dat'
 qual_threshold = 40
 filter_by_quality_std = True
 quality_std_multiplier = 3
@@ -45,11 +47,12 @@ window_std_cov_threshold = 3
 thread_num = 32
 
 
-def get_intervals_to_filter_out(filter_out_DR_genes):
+def get_intervals_to_filter_out(filter_out_DR_genes, filter_short_repeats):
     """
     Reads annotations and picks coordinates of repeats and mobile elements.
 
     :param filter_out_DR_genes: if True adds coordinates of DR genes from list of DR genes to the results
+    :param filter_short_repeats: if True adds coordinates of short tandem repeats to the result
     :return: list of tuples (begin, end), representing intervals
     """
     coords = []
@@ -66,6 +69,12 @@ def get_intervals_to_filter_out(filter_out_DR_genes):
                             coords.append((int(s[3]), int(s[4]) + upstream_length))
             elif s[2] in ('Repeat_region', 'mobile_element'):
                 coords.append((int(s[3]), int(s[4])))
+    if filter_short_repeats:
+        with open(path_to_short_tandem_repeats) as f:
+            for line in f.readlines()[15:]:
+                s = line.split()
+                coords.append((int(s[0]), int(s[1])))
+    coords.sort(key=lambda tup: tup[0])
     return coords
 
 
@@ -279,7 +288,9 @@ def filter_variants(sample_id, all_variants_pos_list, variants, filter_intervals
                 if pos == filter_intervals_starts[0]:
                     inside_filtered_interval = True
             else:
-                if pos <= filter_intervals[i - 1][1]:
+                if i < len(filter_intervals) and filter_intervals_starts[i] == pos:
+                    inside_filtered_interval = True
+                elif pos <= filter_intervals[i - 1][1]:
                     inside_filtered_interval = True
             if inside_filtered_interval:
                 continue
@@ -371,8 +382,7 @@ def read_all_data(sample_ids, filter_overcovered_positions, coverage_std_multipl
     :return: sample to variants map, list of all variant positions, sample to coverage map
     """
 
-    filter_intervals = get_intervals_to_filter_out(filter_out_DR_genes)
-    filter_intervals.sort(key=lambda tup: tup[0])
+    filter_intervals = get_intervals_to_filter_out(filter_out_DR_genes, filter_short_repeats)
     sample_to_variants = {}
     tasks = Parallel(n_jobs=thread_num)(delayed(read_vcf_file)(sample_id) for sample_id in sample_ids)
     all_snp_pos = set()
@@ -443,6 +453,7 @@ def print_config():
         f.write('window_max_cov_threshold_coef = ' + str(window_max_cov_threshold_coef) + '\n')
         f.write('window_std_cov_threshold = ' + str(window_std_cov_threshold) + '\n')
         f.write('filter_by_window_genes_only = ' + str(filter_by_window_genes_only) + '\n')
+        f.write('filter_short_repeats = ' + str(filter_short_repeats) + '\n')
 
 
 def main():

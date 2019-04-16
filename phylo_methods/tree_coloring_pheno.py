@@ -8,19 +8,20 @@ from ete3 import Tree
 
 from src.core.constants import data_path
 
-drug = 'Ethambutol'
+drug = 'Isoniazid'
 forward_tag = '[&!color=#ff0033]'
 backward_tag = '[&!color=#00ff00]'
 
 path_to_fig_tree = data_path + 'fig_tree.txt'
-path_to_pheno_and_trees = data_path + 'reconstructed_mc10_mega_MP_mix/'
-path_to_pheno = data_path + 'pheno_mc5_mega_mix/'
+path_to_pheno_and_trees = data_path + 'reconstructed_mc10_mega_MP/'#'reconstructed_mc10_mega_MP_mix/'
+path_to_pheno = data_path + 'pheno_mc5_mega/'#'pheno_mc5_mega_mix/'
 
 out_path = data_path + 'colored_trees_pheno_RS/'
 
 color_only_changes = False
 prune = False
 random_fraction = 0.1
+
 
 def read_parents(drug):
     parents = []

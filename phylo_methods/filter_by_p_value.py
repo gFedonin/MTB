@@ -140,6 +140,7 @@ def convert_for_all_drugs():
         makedirs(path_to_res_dir + filter_str + upper_or_lower + '_converted/')
     indel_list = [l.strip() for l in open(path_to_indel_list, 'r').readlines()]
     cds_list = read_annotations(upstream_length)
+    number_to_drug = read_drug_codes()
     for drug in drug_list:
         path_to_coords = path_to_res_dir + filter_str + upper_or_lower + '/' + drug.lower() + \
                          phylo_str + upper_or_lower + '.pvalue.pairs'
@@ -151,18 +152,29 @@ def convert_for_all_drugs():
             gene_to_Walker = read_Walker()
             with open(out_path, 'w') as out_f:
                 with open(path_to_coords, 'r') as f:
-                    out_f.write('type\tgene_name\tgene_pos\t' + f.readline().strip() + '\tWalker\tleft_gene\tright_gene\n')
+                    drug_code_pos = -1
+                    header = f.readline().strip()
+                    s = header.split('\t')
+                    for i in range(len(s)):
+                        if s[i] == 'target site' or s[i] == 'bgr_site':
+                            drug_code_pos = i
+                            break
+                    out_f.write('type\tgene_name\tgene_pos\t' + header + '\tWalker\tleft_gene\tright_gene\n')
                     for line in f.readlines():
                         if line != '\n':
-                            pos = int(line.strip().split('\t')[0])
+                            s = line.strip().split('\t')
+                            pos = int(s[0])
+                            if drug_code_pos != -1:
+                                s[drug_code_pos] = number_to_drug[s[drug_code_pos]]
                             if pos > ref_len:
+                                l = '\t'.join(s)
                                 s = indel_list[pos - ref_len - 1].split('_')
                                 del_pos = int(s[1])
                                 cds = indel_pos_to_cds.get(del_pos)
-                                print_pos(out_f, cds, del_pos, gene_to_Walker, line.strip(), s[0], cds_list)
+                                print_pos(out_f, cds, del_pos, gene_to_Walker, l, s[0], cds_list)
                             else:
                                 cds = pos_to_cds.get(pos)
-                                print_pos(out_f, cds, pos, gene_to_Walker, line.strip(), 'snp', cds_list)
+                                print_pos(out_f, cds, pos, gene_to_Walker, '\t'.join(s), 'snp', cds_list)
 
 
 def merge_lists_for_all_drugs():
