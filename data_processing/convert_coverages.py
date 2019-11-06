@@ -5,11 +5,11 @@ from os.path import exists
 
 from sklearn.externals.joblib import Parallel, delayed
 
-from src.core.constants import ref_len, data_path
+from core.constants import ref_len, data_path
 
 # path_to_coverages = '/export/data/kkuleshov/myc/sra/'
 path_to_coverages = data_path + 'coverages/'
-path_to_ids = data_path + 'all_with_pheno_and_snp.txt'
+path_to_ids = data_path + 'all_with_pheno.txt'
 # out_path = data_path + 'coverages_with_percentiles/t5p5/'
 out_path = data_path + 'coverages_shrinked/'
 coverage_threshold = 5
@@ -60,11 +60,12 @@ def convert_old(sample_ids):
 
 
 def read_depth_file_and_shrink(sample_id):
-    with open(path_to_coverages + sample_id + '.depth') as fin:
-        with open(out_path + sample_id + '.cov', 'w') as fout:
-            for line in fin.readlines():
-                s = line.strip().split('\t')
-                fout.write(s[2] + '\n')
+    if not exists(out_path + sample_id + '.cov'):
+        with open(path_to_coverages + sample_id + '.depth') as fin:
+            with open(out_path + sample_id + '.cov', 'w') as fout:
+                for line in fin.readlines():
+                    s = line.strip().split('\t')
+                    fout.write(s[2] + '\n')
 
 
 if __name__ == '__main__':

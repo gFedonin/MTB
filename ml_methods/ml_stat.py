@@ -1,23 +1,27 @@
 from os.path import exists
 
-from scipy.sparse import lil_matrix
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.externals.joblib import Parallel, delayed
 import os
 
 from sklearn.linear_model import LogisticRegression
 
-from src.core.annotations import read_annotations
-from src.core.constants import data_path, upstream_length
-from src.core.data_reading import read_pheno, read_subset, read_snp_list
-from src.ml_methods.mtb_predictor import MTBPredictor, MTBPredictorExtended, MTBPredictorPairs
+from core.annotations import read_annotations
+from core.constants import data_path, upstream_length
+from core.data_reading import read_pheno, read_subset, read_snp_list
+from ml_methods.mtb_predictor import MTBPredictor, MTBPredictorExtended, MTBPredictorPairs
 
 path_to_pheno = data_path + 'pheno_mc5_mega/'
-path_to_var = data_path + 'snps/annotated_with_DR_with_indel_with_pheno_and_snp_win_qual_mqm_std3_mqm30_long_del_pg_filter_samples_first/'
-path_to_ids = data_path + 'samples_int4.list'#'snps/raw_with_DR_with_indel_with_pheno_and_snp_no_win_m3_filter_samples_first/samples_filtered.list'#'dr_covered_with_pheno_and_snp_new.txt'
+# path_to_var = data_path + 'snps/annotated_with_DR_with_indel_with_pheno_and_snp_no_win_qual_mqm_std3_mqm30_no_highcov_long_del_pg_NWds10_str10/'
+# path_to_var = data_path + 'snps/gatk_before_cortex/annotated_long_del_pg_NWds10/'
+path_to_var = data_path + 'snps/skesa_mum4_annotated_long_del_pg_NWds10/'
+# path_to_ids = data_path + 'snps/intersect.list'#'snps/raw_with_DR_with_indel_with_pheno_and_snp_no_win_m3_filter_samples_first/samples_filtered.list'#'dr_covered_with_pheno_and_snp_new.txt'
+path_to_ids = data_path + 'all_with_pheno.txt'
 path_to_subsets = data_path + 'subsets/'
 
-log_path = '../../res/ml_log_mc1-noncds_long_del_pg_ext_filtered_win_qual_mqm_std3_mqm30_filter_samples_first/'
+# log_path = '../../res/ml_log_mc1-noncds_long_del_pg_ext_NWds10_str10/'
+# log_path = '../../res/ml_log_mc3_gatk_before_annotated_long_del_pg_NWds10/'
+log_path = '../../res/ml_log_mc3_skesa_mum4_annotated_long_del_pg_NWds10/'
 
 use_extended_features = True
 merge_all_mut_in_pos = True
@@ -28,12 +32,12 @@ drop_hypothetical = False
 keep_proteomic_validated_only = False
 keep_only_not_hypotetical_or_proteomic_validated = False
 upstream_indel_breakes_gene = True
-snp_count_threshold = 1
+snp_count_threshold = 3
 
 use_pairs = False
 jaccard_index_threshold = 0.9
 
-thread_num = 32
+thread_num = 144
 
 filter_by_var_list = False
 path_to_var_list = path_to_var + 'dr_genes_var_list.csv'
@@ -160,10 +164,11 @@ def read_all_variants(sample_ids):
     sample_to_variants = {}
     if filter_by_var_list:
         full_snp_list = read_snp_list(path_to_var_list)
-        tasks = Parallel(n_jobs=-1)(delayed(read_variants)(path_to_var, sample_id, name_to_cds, full_snp_list)
-                                    for sample_id in sample_ids)
+        tasks = Parallel(n_jobs=thread_num, batch_size=len(sample_ids)//thread_num + 1)(delayed(read_variants)(path_to_var, sample_id, name_to_cds, full_snp_list)
+                                    for sample_id in sample_ids if exists(path_to_var + sample_id + '.variants'))
     else:
-        tasks = Parallel(n_jobs=-1)(delayed(read_variants)(path_to_var, sample_id, name_to_cds) for sample_id in sample_ids)
+        tasks = Parallel(n_jobs=thread_num, batch_size=len(sample_ids)//thread_num + 1)(delayed(read_variants)(path_to_var, sample_id, name_to_cds)
+                                    for sample_id in sample_ids if exists(path_to_var + sample_id + '.variants'))
     for name, snp_list in tasks:
         sample_to_variants[name] = snp_list
     print('samples\' variants reading done')
@@ -185,7 +190,7 @@ def main():
 
     sample_to_variants = read_all_variants(sample_ids)
 
-    tasks = Parallel(n_jobs=-1)(delayed(split_dataset)(drug, pheno, sample_to_variants, set_name_to_list['Walker_subset'])
+    tasks = Parallel(n_jobs=thread_num)(delayed(split_dataset)(drug, pheno, sample_to_variants, set_name_to_list['Walker_subset'])
                      for drug, pheno in drug_to_pheno.items())
 
     drug_to_splits = {}

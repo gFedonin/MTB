@@ -8,9 +8,9 @@ from sklearn import clone
 from sklearn.metrics import confusion_matrix, roc_auc_score, f1_score
 from sklearn.externals.joblib import Parallel, delayed
 
-from src.core.annotations import read_annotations, CDSType
-from src.core.constants import upstream_length
-from src.data_processing.print_mutations_extended import process_variants
+from core.annotations import read_annotations, CDSType
+from core.constants import upstream_length
+from data_processing.print_mutations_extended import process_variants
 import numpy as np
 
 

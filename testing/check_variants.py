@@ -3,6 +3,7 @@ from sklearn.externals.joblib import Parallel, delayed
 path_to_snps = './data/snps/raw_with_DR_with_indel_with_pheno_and_snp_mc10/'
 path_to_ids = './data/all_with_pheno_and_snp.txt'
 
+
 def read_variants(sample_id):
     snps = []
     with open(path_to_snps + sample_id + '.variant', 'r') as f1:

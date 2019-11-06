@@ -1,12 +1,12 @@
 from sklearn.externals.joblib import Parallel, delayed
+from ete3 import Tree
+from core.annotations import CDSType
+from core.constants import data_path
+from core.data_reading import read_h37rv
+from phylo_methods.print_XPARR import get_aminoacids_sense, get_aminoacids_antisense
+from phylo_methods.print_XPARR_indel import filter_all_variants, filter_alignments, read_all_variants
 
-from src.core.annotations import CDSType
-from src.core.constants import data_path
-from src.core.data_reading import read_h37rv
-from src.phylo_methods.print_XPARR import get_aminoacids_sense, get_aminoacids_antisense
-from src.phylo_methods.print_XPARR_indel import filter_all_variants, filter_alignments, read_all_variants
-
-path_to_ids = data_path + 'dr_covered_with_pheno_and_snp.txt'
+path_to_ids = data_path + '10drugs.sample_list'
 path_to_snps = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_mc10/'
 path_to_alignment = data_path + 'ancestors_mc10_mega_merged.fasta'
 path_to_dictionaries = data_path + 'dictionaries/'
@@ -14,12 +14,8 @@ path_to_snps_list = data_path + 'snp_aln_with_DR_with_pheno_and_snp_mc10_old_rep
 
 first_line = False
 
-if first_line:
-    path_to_pheno = data_path + 'pheno_mc5_mega_first_line/'
-    path_to_pheno_and_trees = data_path + 'reconstructed_mc10_mega_MP_first_line/'
-else:
-    path_to_pheno = data_path + 'pheno_mc5_mega_mix/'
-    path_to_pheno_and_trees = data_path + 'reconstructed_mc10_mega_MP_mix/'
+path_to_pheno = data_path + 'pheno_mc5_mega/'
+path_to_pheno_and_trees = data_path + 'reconstructed_mc10_mega_MP/'
 
 if first_line:
     drug_names = ('Isoniazid', 'Rifampicin', 'Ethambutol', 'Pyrazinamide', 'Streptomycin')
@@ -27,26 +23,42 @@ else:
     drug_names = ('Isoniazid', 'Rifampicin', 'Ethambutol', 'Pyrazinamide', 'Streptomycin', 'Moxifloxacin', 'Ofloxacin',
                   'Amikacin', 'Capreomycin', 'Kanamycin')
 
-path_to_target_snp_pos_list = '../../res/merged_snp_pos_RR.list'
-path_to_target_indel_pos_list = '../../res/merged_indel_pos_RR.list'
+print_RR = True
 
-out_path = data_path + 'xparr/mc10_mega_MP_RR_vars_vs_vars_filtered_frd0.1_pvalue0.05_pheno_array_10drugs_fixed.xparr'
+if print_RR:
+    path_to_target_snp_pos_list = '../../res/merged_snp_pos_RR.list'
+    path_to_target_indel_pos_list = '../../res/merged_indel_pos_RR.list'
+    out_path = data_path + 'xparr/mc10_mega_MP_RR_vars_vs_vars_filtered_frd0.1_pvalue0.05_pheno_array_10drugs_fixed_pheno.xparr'
+else:
+    path_to_target_snp_pos_list = '../../res/merged_snp_pos.list'
+    path_to_target_indel_pos_list = '../../res/merged_indel_pos.list'
+    out_path = data_path + 'xparr/mc10_mega_MP_vars_vs_vars_filtered_frd0.1_pvalue0.05_pheno_array_10drugs_fixed_pheno.xparr'
+
+
 path_to_drug_codes = data_path + 'xparr/mc10_mega_MP/drug_codes.txt'
 overwrite = True
 
-print_RR = True
+
 print_SS = False
 use_DR_genes_only = False
 
 
-def read_parents(path_to_pheno_and_trees, drug):
+def read_parents(path_to_pheno_and_trees, drug, sample_ids):
     parents = []
+    t = Tree()
+    name_to_node = {}
     with open(path_to_pheno_and_trees + drug + '/parents.csv', 'r') as f:
-        root = f.readline().strip()
+        t.name = f.readline().strip()
+        name_to_node[t.name] = t
         for line in f.readlines():
             s = line.strip().split('\t')
-            parents.append((s[0], s[1], s[2]))
-    return root, parents
+            parent = name_to_node[s[1]]
+            child = parent.add_child(name=s[0], dist=float(s[2]))
+            name_to_node[s[0]] = child
+    t.prune(sample_ids)
+    for node in t.iter_descendants("levelorder"):
+        parents.append((node.name, node.up.name, str(node.dist)))
+    return t.name, parents
 
 
 def format_variant(sample_id, sample_snp_seq, parent_snp_seq, snp_pos_list, ref_seq, snp_to_cds, sample_indel_seq,
@@ -166,7 +178,7 @@ def main():
         sample_to_pheno = read_pheno(path_to_pheno, path_to_pheno_and_trees, drug)
         drug_to_pheno[drug] = sample_to_pheno
 
-    root, parents = read_parents(path_to_pheno_and_trees, drug_names[0])
+    root, parents = read_parents(path_to_pheno_and_trees, 'Streptomycin', sample_ids)
     sample_to_mut = format_mut_lists('all', sample_to_snp_seq, pos_list, ref_seq, snp_to_cds, parents,
                                      sample_to_indel_seq, filtered_snp_pos_set, filtered_indel_pos_set)
 

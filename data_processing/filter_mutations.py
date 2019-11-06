@@ -1,25 +1,30 @@
+import gzip
+from bisect import bisect_left
 from os import makedirs
-import numpy as np
-from bisect import bisect_left, bisect_right
 from os.path import exists
+
+import numpy as np
 from bitarray import bitarray
 from sklearn.externals.joblib import Parallel, delayed
 
-from src.core.annotations import read_annotations, localize_all_variants, CDSType
-from src.core.constants import upstream_length, dr_genes, data_path, ref_len
+from core.annotations import CDSType, localize_all_variants, read_annotations
+from core.constants import data_path, dr_genes, ref_len, upstream_length
 
-path_to_ids = data_path + 'all_with_pheno_and_snp.txt'#'test.list'
+path_to_ids = data_path + 'test.list'#'all_with_pheno.txt'
+# path_to_snps = data_path + 'snps/freebayes_before_cortex/freebayes_before_cortex_vcf/'
 path_to_snps = data_path + 'snps/realigned_vcfs_indels_all/'
-out_path = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_no_win_qual_mqm_std3_mqm30_no_highcov_str10/'
-out_path_win_cov = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_win_cov_m3_filter_samples_first/'
+# out_path = data_path + 'snps/freebayes_before_cortex/raw_freebayes_before_cortex_no_win_qual_mqm_std3_mqm30_no_highcov/'
+out_path = data_path + 'snps/raw_freebayes_mqm_std3_mqm30_no_highcov_no_repeats/'
+out_path_win_cov = data_path + 'snps/freebayes_before_cortex/raw_with_DR_with_indel_with_pheno_and_snp_win_cov_m3_filter_samples_first/'
 out_path_variants = out_path + 'filtered_raw_variants_pos.csv'
 out_path_variants_with_low_cov = out_path + 'low_covered_raw_variants_pos.csv'
 out_path_filtered_samples = out_path + 'samples_filtered.list'
 out_path_samplies_with_low_coverage = out_path + 'samples_low_covered.list'
-path_to_depths = data_path + 'coverages_shrinked/'#''/export/data/kkuleshov/myc/sra/'
+path_to_depths = data_path + 'coverages_shrinked/'#'/export/data/kkuleshov/myc/sra/'
 path_to_annotations = data_path + 'AL123456_rev.gff'
 
-filter_short_repeats = True
+filter_annotation_repeats = False
+filter_short_repeats = False
 path_to_short_tandem_repeats = data_path + 'h37rv.fasta.2.7.7.80.10.20.10.dat'
 qual_threshold = 40
 filter_by_quality_std = True
@@ -47,7 +52,7 @@ window_std_cov_threshold = 3
 thread_num = 32
 
 
-def get_intervals_to_filter_out(filter_out_DR_genes, filter_short_repeats):
+def get_intervals_to_filter_out(filter_annotation_repeats, filter_out_DR_genes, filter_short_repeats):
     """
     Reads annotations and picks coordinates of repeats and mobile elements.
 
@@ -67,13 +72,15 @@ def get_intervals_to_filter_out(filter_out_DR_genes, filter_short_repeats):
                             coords.append((int(s[3]) - upstream_length, int(s[4])))
                         else:
                             coords.append((int(s[3]), int(s[4]) + upstream_length))
-            elif s[2] in ('Repeat_region', 'mobile_element'):
+            elif filter_annotation_repeats and s[2] == 'Repeat_region':
+                coords.append((int(s[3]), int(s[4])))
+            elif s[2] == 'mobile_element':
                 coords.append((int(s[3]), int(s[4])))
     if filter_short_repeats:
         with open(path_to_short_tandem_repeats) as f:
             for line in f.readlines()[15:]:
                 s = line.split()
-                coords.append((int(s[0]), int(s[1])))
+                coords.append((int(s[0]), int(s[1]) + 1))
     coords.sort(key=lambda tup: tup[0])
     return coords
 
@@ -129,45 +136,42 @@ def read_vcf_file(sample_id):
         return res
 
     variants = []
-    with open(path_to_snps + sample_id + '_h37rv.vcf', 'r') as f1:
-        for line in f1.readlines():
-            line = line.strip()
-            if line[0] != '#':
-                tokens = line.split('\t')
-                qual = float(tokens[5])
-                info = tokens[-3]
-                i = info.index('DP=')
-                j = info.index(';', i + 3)
-                cov = int(info[i + 3: j])
-                i = info.index('TYPE=')
-                j = info.index(';', i + 5)
-                v_type = info[i + 5: j]
-                i = info.index('MQM=')
-                j = info.index(';', i + 4)
-                mqm = float(info[i + 4: j])
-                pos = int(tokens[1])
-                alt = tokens[4]
-                if v_type == 'snp':
-                    if len(alt) == 1:
-                        variants.append((pos, alt, v_type, cov, qual, mqm))
-                    else:
-                        i = info.index('CIGAR=')
-                        j = info.index(';', i + 6)
-                        cigar = parse_cigar(info[i + 6: j])
-                        p = 0
-                        for l, o in cigar:
-                            if o == 'M':
-                                pos += l
-                                p += l
-                            elif o == 'X':
-                                for n in range(l):
-                                    variants.append((pos, alt[p], 'snp', cov, qual, mqm))
-                                    pos += 1
-                                    p += 1
+    path_to_vcf = path_to_snps + sample_id + '_h37rv.vcf'
+    if not exists(path_to_vcf):
+        path_to_vcf = path_to_snps + sample_id + '_h37rv.vcf.gz'
+        if exists(path_to_vcf):
+            f1 = gzip.open(path_to_vcf, 'rt')
+        else:
+            return sample_id, variants
+    else:
+        f1 = open(path_to_vcf, 'r')
+    for line in f1.readlines():
+        line = line.strip()
+        if line[0] != '#':
+            tokens = line.split('\t')
+            genotype_fields = tokens[-1].split(':')
+            gl = genotype_fields[-1].split(',')
+            var_index = gl.index('0')
+            qual = float(tokens[5])
+            info = tokens[-3]
+            i = info.index('DP=')
+            j = info.index(';', i + 3)
+            cov = int(genotype_fields[2].split(',')[var_index])
+            i = info.index('TYPE=')
+            j = info.index(';', i + 5)
+            v_type = info[i + 5: j]
+            i = info.index('MQM=')
+            j = info.index(';', i + 4)
+            mqm = float(info[i + 4: j].split(',')[var_index - 1])
+            pos = int(tokens[1])
+            alt = tokens[4].split(',')[var_index - 1]
+            if v_type == 'snp':
+                if len(alt) == 1:
+                    variants.append((pos, alt, v_type, cov, qual, mqm))
                 else:
                     i = info.index('CIGAR=')
                     j = info.index(';', i + 6)
-                    cigar = parse_cigar(info[i + 6: j])
+                    cigar = parse_cigar(info[i + 6: j].split(',')[var_index - 1])
                     p = 0
                     for l, o in cigar:
                         if o == 'M':
@@ -178,13 +182,28 @@ def read_vcf_file(sample_id):
                                 variants.append((pos, alt[p], 'snp', cov, qual, mqm))
                                 pos += 1
                                 p += 1
-                        elif o == 'D':
-                            for n in range(l):
-                                variants.append((pos, '-', 'del', cov, qual, mqm))
-                                pos += 1
-                        elif o == 'I':
-                            variants.append((pos, alt[p: p + l], 'ins', cov, qual, mqm))
-                            p += l
+            else:
+                i = info.index('CIGAR=')
+                j = info.index(';', i + 6)
+                cigar = parse_cigar(info[i + 6: j].split(',')[var_index - 1])
+                p = 0
+                for l, o in cigar:
+                    if o == 'M':
+                        pos += l
+                        p += l
+                    elif o == 'X':
+                        for n in range(l):
+                            variants.append((pos, alt[p], 'snp', cov, qual, mqm))
+                            pos += 1
+                            p += 1
+                    elif o == 'D':
+                        for n in range(l):
+                            variants.append((pos, '-', 'del', cov, qual, mqm))
+                            pos += 1
+                    elif o == 'I':
+                        variants.append((pos, alt[p: p + l], 'ins', cov, qual, mqm))
+                        p += l
+    f1.close()
     return sample_id, variants
 
 
@@ -270,6 +289,8 @@ def filter_variants(sample_id, all_variants_pos_list, variants, filter_intervals
     mean_mqm = np.mean(mqm_list)
     std_mqm = np.std(mqm_list)
     for pos, alt, type, cov, qual, mqm in variants:
+        # if pos == 3944017:
+        #     a = 0
         cds = pos_to_cds.get(pos)
         if qual >= qual_threshold and cov >= variant_cov_threshold:
             if filter_overcovered_positions and cov > mean_coverage + coverage_std_multiplier*std_coverage:
@@ -382,7 +403,7 @@ def read_all_data(sample_ids, filter_overcovered_positions, coverage_std_multipl
     :return: sample to variants map, list of all variant positions, sample to coverage map
     """
 
-    filter_intervals = get_intervals_to_filter_out(filter_out_DR_genes, filter_short_repeats)
+    filter_intervals = get_intervals_to_filter_out(filter_annotation_repeats, filter_out_DR_genes, filter_short_repeats)
     sample_to_variants = {}
     tasks = Parallel(n_jobs=thread_num)(delayed(read_vcf_file)(sample_id) for sample_id in sample_ids)
     all_snp_pos = set()

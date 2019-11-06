@@ -2,8 +2,8 @@ from os import makedirs
 
 from os.path import exists
 
-from src.core.annotations import read_annotations, CDSType
-from src.core.constants import upstream_length, data_path
+from core.annotations import read_annotations, CDSType
+from core.constants import upstream_length, data_path
 
 path_to_Walker_dict = data_path + 'dictionaries_raw/Walker_dictionary.txt'
 out_path = data_path + 'dictionaries_indels/Walker_dictionary_with_indels.txt'

@@ -1,14 +1,16 @@
 from Bio import SeqIO
 from sklearn.externals.joblib import Parallel, delayed
 
-from src.core.constants import data_path
-from src.core.data_reading import read_h37rv
+from core.constants import data_path
+from core.data_reading import read_h37rv
 
-path_to_ids = data_path + 'dr_covered_with_pheno_and_snp.txt'
-path_to_snps = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_mc10/'
-out_path_aln = data_path + 'snp_aln_with_DR_with_pheno_and_snp_mc10_old_rep.fasta'
-out_path_snps = data_path + 'snp_aln_with_DR_with_pheno_and_snp_mc10_old_rep.txt'
+path_to_ids = data_path + 'all_with_pheno_and_snp.txt'
+path_to_snps = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_no_win_qual_mqm_std3_mqm30_no_highcov_str10/'
+out_path_aln = data_path + 'snp_aln_with_DR_with_pheno_and_snp_str10.fasta'
+out_path_snps = data_path + 'snp_aln_with_DR_with_pheno_and_snp_str10.txt'
 path_to_mummer = data_path + 'mummer1.aligns'
+
+thread_num = 32
 
 
 def parse_mummer():
@@ -119,7 +121,7 @@ def main():
     aln = preprocess_aln(aln)
     print('mummer parsed')
 
-    tasks = Parallel(n_jobs=-1)(delayed(read_snps)(sample_id) for sample_id in sample_ids)
+    tasks = Parallel(n_jobs=thread_num, batch_size=len(sample_ids)//thread_num + 1)(delayed(read_snps)(sample_id) for sample_id in sample_ids)
     for sample_id, snps in tasks:
         sample_to_snps[sample_id] = snps
         for pos, alt in snps.items():

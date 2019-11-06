@@ -1,13 +1,18 @@
-from Bio import SeqIO
-from os.path import exists
-from sklearn.externals.joblib import Parallel, delayed
 import os
+from os.path import exists
 
-from src.core.annotations import CDSType, read_annotations, localize_all_variants
-from src.core.constants import upstream_length, data_path
-from src.core.data_reading import read_dict, read_h37rv
-from src.phylo_methods.print_XPARR import get_aminoacids_sense, get_aminoacids_antisense, read_pheno, read_parents, \
-    filter_snp_list, filter_all_aln
+from Bio import SeqIO
+from sklearn.externals.joblib import Parallel, delayed
+
+from phylo_methods.print_XPARR import extract_dr_genes
+from core.annotations import (CDSType, localize_all_variants,
+                                  read_annotations)
+from core.constants import data_path, upstream_length
+from core.data_reading import read_dict, read_h37rv
+from phylo_methods.print_XPARR import (filter_all_aln, filter_snp_list,
+                                           get_aminoacids_antisense,
+                                           get_aminoacids_sense, read_parents,
+                                           read_pheno)
 
 path_to_ids = data_path + 'dr_covered_with_pheno_and_snp.txt'
 path_to_snps = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_mc10/'
@@ -23,21 +28,6 @@ overwrite = True
 use_DR_genes_only = False
 print_RR = True
 print_SS = False
-
-
-def extract_dr_genes():
-    name, drug_to_mut_list = read_dict(path_to_dictionaries, 'Walker_dictionary')
-    drug_to_gene_set = {}
-    all_genes = set()
-    for drug, mut_list in drug_to_mut_list.items():
-        genes = set()
-        for mut in mut_list:
-            s = mut.split('\t')
-            if s[0] == 'Gene':
-                genes.add(s[1])
-                all_genes.add(s[1])
-        drug_to_gene_set[drug] = genes
-    return drug_to_gene_set, all_genes
 
 
 def format_variant(sample_id, sample_snp_seq, parent_snp_seq, snp_pos_list, ref_seq, snp_to_cds, sample_indel_seq,
@@ -177,7 +167,7 @@ def filter_all_variants(snp_pos_list_from_alignment, snp_pos_set_from_samples, i
 
     cds_list = read_annotations(upstream_length)
     if use_DR_genes_only:
-        drug_to_gene_set, all_dr_genes = extract_dr_genes()
+        drug_to_gene_set, all_dr_genes = extract_dr_genes(path_to_dictionaries)
         snp_to_cds = localize_all_variants(snp_pos_list_from_alignment, cds_list, all_dr_genes)
         indel_pos_set = set()
         for m in indel_list_from_alignment:

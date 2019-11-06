@@ -1,7 +1,9 @@
+from os.path import exists
+
 from Bio import SeqIO
 from sklearn.externals.joblib import Parallel, delayed
 
-from src.core.constants import drug_names, data_path
+from core.constants import data_path, drug_names
 
 path_to_ref = data_path + 'h37rv.fasta'
 
@@ -49,7 +51,7 @@ def read_dict(path_to_dict: 'str', name: 'str')->'tuple[str, dict[str, list[str]
 
     :param path_to_dict: str path to folder with dictionary files
     :param name: str dictionary name, no extension
-    :return: tuple[str, dict[str,list[str]]] (name, drug_name to muy_list dictionary
+    :return: tuple[str, dict[str,list[str]]] (name, drug_name to my_list dictionary)
     """
     drug_to_mut_list = {}
     with open(path_to_dict + name + '.txt', 'r') as f:
@@ -78,27 +80,34 @@ def read_dict(path_to_dict: 'str', name: 'str')->'tuple[str, dict[str, list[str]
     return name, drug_to_mut_list
 
 
-def read_variants(path_to_varints, sample_id, filter_set=None, keep_type=True):
+def read_variants(path_to_variants, sample_id, filter_set=None, keep_type=True):
     var_list = []
-    with open(path_to_varints + sample_id + '.variants', 'r') as f:
-        for line in f.readlines():
-            l = line.strip()
-            if not keep_type:
-                i = l.rfind('\t')
-                l = l[:i]
-            if l != '':
-                if filter_set is not None:
-                    if l in filter_set:
+    if exists(path_to_variants + sample_id + '.variants'):
+        with open(path_to_variants + sample_id + '.variants', 'r') as f:
+            for line in f.readlines():
+                if line[0] == '#':
+                    continue
+                l = line.strip()
+                if not keep_type:
+                    i = l.rfind('\t')
+                    l = l[:i]
+                if l != '':
+                    if filter_set is not None:
+                        if l in filter_set:
+                            var_list.append(l)
+                    else:
                         var_list.append(l)
-                else:
-                    var_list.append(l)
     return sample_id, var_list
 
 
-def read_all_variants(path_to_variants, sample_ids, filter_set=None, keep_type=True):
+def read_all_variants(path_to_variants, sample_ids, filter_set=None, keep_type=True, thread_num=-1):
     sample_to_variants = {}
-    tasks = Parallel(n_jobs=-1)(delayed(read_variants)(path_to_variants, sample_id, filter_set, keep_type)
-                                for sample_id in sample_ids)
+    if thread_num == -1:
+        tasks = Parallel(n_jobs=-1)(delayed(read_variants)(path_to_variants, sample_id, filter_set, keep_type)
+                                    for sample_id in sample_ids)
+    else:
+        tasks = Parallel(n_jobs=thread_num, batch_size=len(sample_ids)//thread_num + 1)(delayed(read_variants)(path_to_variants, sample_id, filter_set, keep_type)
+                                    for sample_id in sample_ids)
     for sample_id, var_list in tasks:
         sample_to_variants[sample_id] = var_list
     return sample_to_variants

@@ -1,6 +1,6 @@
 from src.core.constants import data_path
 
-path_to_res_dir = '../../res/tree_was/mc10_mega_MP_filter1/'
+path_to_res_dir = '../../res/tree_was/mc10_mega_MP_RR_bam_filtered/'
 p_value_threshold = 0.05
 use_fdr = True
 fdr_threshold = 0.1
@@ -18,10 +18,10 @@ else:
 path_to_selected_positions_list = path_to_res_dir + 'pairs' + upper_or_lower + '.' + filter_str + \
                                   '.converted.csv'
 path_to_filter_positions_list = data_path + \
-                                'snps/raw_with_DR_with_indel_with_pheno_and_snp_no_win_qual_mqm_std3_mqm30_filter_samples_first/filtered_annotated_variants_pos.csv'
+                                'snps/raw_with_DR_with_indel_with_pheno_and_snp_no_win_qual_mqm_std3_mqm30_no_highcov_bam_filtered/filtered_annotated_variants.csv'
 
-out_path = path_to_res_dir + 'pairs' + upper_or_lower + '.' + filter_str + '.converted.filtered_by_mqm.csv'
-out_path_trash = path_to_res_dir + 'pairs' + upper_or_lower + '.' + filter_str + '.converted.trash.filtered_by_mqm.csv'
+out_path = path_to_res_dir + 'pairs' + upper_or_lower + '.' + filter_str + '.converted.filtered_by_mqm_bam_filtered.csv'
+out_path_trash = path_to_res_dir + 'pairs' + upper_or_lower + '.' + filter_str + '.converted.trash.filtered_by_mqm_bam_filtered.csv'
 
 
 if __name__ == '__main__':

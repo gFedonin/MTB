@@ -4,13 +4,13 @@ from os.path import exists
 from sklearn.externals.joblib import Parallel, delayed
 
 drug_list = ['PZA', 'RIF', 'AMI', 'CAP', 'CIP', 'EMB', 'ETH', 'INH', 'KAN', 'MOX', 'OFL', 'PRO', 'STR']
-upper_or_lower = 'upper'
+upper_or_lower = 'lower'
 
 epistat = '~/devel/epistat.6/estimate_fdr.pl '
 in_suffix1 = '.' + upper_or_lower + '.pvalue.pairs.fdr.prm'
-out_suffix1 = '.' + upper_or_lower + '.pvalue.pairs_filter.fdr'
+out_suffix1 = '.' + upper_or_lower + '.pvalue.pairs_bam_filtered.fdr'
 in_suffix2 = '.' + upper_or_lower + '.pvalue.sites.fdr.prm'
-out_suffix2 = '.' + upper_or_lower + '.pvalue.sites_filter.fdr'
+out_suffix2 = '.' + upper_or_lower + '.pvalue.sites_bam_filtered.fdr'
 
 
 def run(drug):

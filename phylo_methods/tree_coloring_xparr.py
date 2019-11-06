@@ -78,12 +78,14 @@ def read_tree():
 
 
 def print_tree(tree, sample_to_pheno, mut_with_pheno_change, mut_with_no_pheno_change, no_mut_with_pheno_change, node_to_nonsyn):
+    s = mut.split('\t')
+    target_gene = s[1]
     newick = tree.write(format=1)
     for node_id, pheno in sample_to_pheno.items():
         if node_id in mut_with_pheno_change:
-            newick = newick.replace(node_id, node_id + '_' + pheno + '[' + green + ',mut=' + node_to_nonsyn[node_id] + ']')
+            newick = newick.replace(node_id, node_id + '_' + pheno + '[' + green + ',mut=' + target_gene + '_' + node_to_nonsyn[node_id] + ']')
         elif node_id in mut_with_no_pheno_change:
-            newick = newick.replace(node_id, node_id + '_' + pheno + '[' + red + ',mut=' + node_to_nonsyn[node_id] + ']')
+            newick = newick.replace(node_id, node_id + '_' + pheno + '[' + red + ',mut=' + target_gene + '_' + node_to_nonsyn[node_id] + ']')
         elif node_id in no_mut_with_pheno_change:
             newick = newick.replace(node_id, node_id + '_' + pheno + '[' + blue + ']')
         else:

@@ -3,9 +3,9 @@ from os.path import exists
 
 from sklearn.externals.joblib import Parallel, delayed
 
-from src.core.annotations import read_annotations, CDSType
-from src.core.constants import upstream_length
-from src.core.data_reading import read_snp_list, read_variants
+from core.annotations import read_annotations, CDSType
+from core.constants import upstream_length
+from core.data_reading import read_snp_list, read_variants
 
 
 path_to_var = '../../data/snps/annotated_with_DR_with_indel_with_pheno_and_snp_mc10/'

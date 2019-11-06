@@ -1,7 +1,7 @@
 from bisect import bisect_left
 
-from src.core.annotations import read_annotations, localize_all_variants, CDSType, CDS
-from src.core.constants import upstream_length, data_path, ref_len
+from core.annotations import read_annotations, localize_all_variants, CDSType, CDS
+from core.constants import upstream_length, data_path, ref_len
 
 path_to_drug_codes = data_path + 'xparr/mc10_mega_MP/drug_codes.txt'
 drug_list = ['PZA', 'RIF', 'AMI', 'CAP', 'CIP', 'EMB', 'ETH', 'INH', 'KAN', 'MOX', 'OFX', 'PRO', 'STR']#
@@ -281,12 +281,14 @@ def convert_vars_to_drugs():
 
 def convert_single_file(header=True):
     indel_list = [l.strip() for l in open(path_to_indel_list, 'r').readlines()]
-    path_to_coords = '../../data/snps/raw_with_DR_with_indel_with_pheno_and_snp_no_win_qual_mqm_std3_mqm30_no_highcov_str10/low_covered_raw_variants_pos.csv'#''../../res/tree_was/vars.set.txt'
-    out_path = '../../data/snps/raw_with_DR_with_indel_with_pheno_and_snp_no_win_qual_mqm_std3_mqm30_no_highcov_str10/low_covered_annotated_variants.csv'#''../../res/tree_was/vars.set.converted'
+    # path_to_coords = '../../data/snps/raw_with_DR_with_indel_with_pheno_and_snp_no_win_qual_mqm_std3_mqm30_no_highcov_bam_filtered/filtered_raw_variants_pos.csv'#''../../res/tree_was/vars.set.txt'
+    # out_path = '../../data/snps/raw_with_DR_with_indel_with_pheno_and_snp_no_win_qual_mqm_std3_mqm30_no_highcov_bam_filtered/filtered_annotated_variants.csv'#''../../res/tree_was/vars.set.converted'
+    path_to_coords = '../../res/testing/freebayes_old_bam_filtered_vs_gatk_after_ld_walker_genes_susceptible.csv'
+    out_path = '../../res/testing/freebayes_old_bam_filtered_vs_gatk_after_ld_walker_genes_susceptible.csv.annotated'
     if header:
-        snps = [int(line.strip().split('\t')[0]) for line in open(path_to_coords, 'r').readlines()[1:] if line != '\n']
+        snps = [int(line.strip().split('\t')[0]) for line in open(path_to_coords, 'r').readlines()[1:] if line != '\n' and '\t' in line]
     else:
-        snps = [int(line.strip().split('\t')[0]) for line in open(path_to_coords, 'r').readlines() if line != '\n']
+        snps = [int(line.strip().split('\t')[0]) for line in open(path_to_coords, 'r').readlines() if line != '\n' and '\t' in line]
     cds_list = read_annotations(upstream_length)
     pos_to_cds, indel_pos_to_cds = localize_vars(snps, cds_list, indel_list)
     gene_to_Walker = read_Walker()
@@ -298,15 +300,18 @@ def convert_single_file(header=True):
                 out_f.write('type\tgene_name\tgene_pos\txparr_pos\tWalker\n')
             for line in f.readlines():
                 if line != '\n':
-                    pos = int(line.strip().split('\t')[0])
-                    if pos > ref_len:
-                        s = indel_list[pos - ref_len - 1].split('_')
-                        del_pos = int(s[1])
-                        cds = indel_pos_to_cds.get(del_pos)
-                        print_pos(out_f, cds, del_pos, gene_to_Walker, line.strip(), s[0])
+                    if '\t' in line:
+                        pos = int(line.strip().split('\t')[0])
+                        if pos > ref_len:
+                            s = indel_list[pos - ref_len - 1].split('_')
+                            del_pos = int(s[1])
+                            cds = indel_pos_to_cds.get(del_pos)
+                            print_pos(out_f, cds, del_pos, gene_to_Walker, line.strip(), s[0])
+                        else:
+                            cds = pos_to_cds.get(pos)
+                            print_pos(out_f, cds, pos, gene_to_Walker, line.strip(), 'snp')
                     else:
-                        cds = pos_to_cds.get(pos)
-                        print_pos(out_f, cds, pos, gene_to_Walker, line.strip(), 'snp')
+                        out_f.write(line)
 
 
 def find_closest_genes(cds_list, pos):
@@ -331,9 +336,11 @@ def read_drug_codes():
 def convert_single_file_with_closest_genes(header=True):
     cds_list = read_annotations(upstream_length)
     indel_list = [l.strip() for l in open(path_to_indel_list, 'r').readlines()]
-    path = '../../res/'#'../../res/tree_was/phen_conditioned/'#'../../data/snps/raw_with_DR_with_indel_with_pheno_and_snp_no_win_qual_mqm_std3_mqm30_filter_samples_first/'
-    path_to_coords = path + 'vars.phen.uncond.cor2pcor_fgr.txt'#'10percent.wiscore.louvain.txt'#'vars.phen.cor2pcor_second.txt'#'filtered_raw_variants_pos.csv'
-    out_path = path + 'vars.phen.uncond.cor2pcor_fgr.converted.csv'#'10percent.wiscore.louvain.annotated.txt'#'vars.phen.cor2pcor_second.annotated.csv'
+    path = '../../res/'#'../../res/tree_was/phen_conditioned/'
+    # 'filter_comparison/different.csv'#'vars.phen_RR.mixt.cor2pcor.all_fgr.out'#'10drugs2vars.up05.out'
+    path_to_coords = path + 'ml_log_mc3_gatk_before_std3/var.counts'
+    # 'filter_comparison/different_annotated.csv'#'vars.phen_RR.mixt.cor2pcor.all_fgr.converted.csv'#'10drugs2vars.up05_annotated.out'
+    out_path = path + 'ml_log_mc3_gatk_before_std3/annotated_var.counts'
     if header:
         snps = [int(line.strip().split('\t')[0]) for line in open(path_to_coords, 'r').readlines()[1:] if line != '\n']
     else:
@@ -348,7 +355,7 @@ def convert_single_file_with_closest_genes(header=True):
                 header = f.readline().strip()
                 s = header.split('\t')
                 for i in range(len(s)):
-                    if s[i] == 'target site' or s[i] == 'bgr_site':
+                    if s[i] == drug_code_field:
                         drug_code_pos = i
                         break
                 out_f.write('type\tgene_name\tgene_pos\t' + header + '\tWalker\tleft_gene\tright_gene\n')
@@ -371,7 +378,10 @@ def convert_single_file_with_closest_genes(header=True):
                         print_pos(out_f, cds, pos, gene_to_Walker, '\t'.join(s), 'snp', cds_list)
 
 
+drug_code_field = 'fgr_site'
+
+
 if __name__ == '__main__':
-    # convert_single_file(False)
-    convert_single_file_with_closest_genes(False)
+    convert_single_file(True)
+    # convert_single_file_with_closest_genes(False)
     # convert_for_all_drugs()

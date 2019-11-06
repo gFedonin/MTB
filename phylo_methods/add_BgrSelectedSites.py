@@ -1,8 +1,8 @@
 from os.path import exists
 
 drug_list = ['PZA', 'RIF', 'AMI', 'CAP', 'CIP', 'EMB', 'ETH', 'INH', 'KAN', 'MOX', 'OFL', 'PRO', 'STR']
-path_to_filter = '../filtered_xparr_variant_pos.list'
-upper_or_lower = 'upper'
+path_to_filter = '../filtered_xparr_variant_pos_bam_filtered.list'
+upper_or_lower = 'lower'
 
 if __name__ == '__main__':
     for drug in drug_list:

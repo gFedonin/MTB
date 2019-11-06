@@ -3,9 +3,9 @@ from os.path import exists
 from sklearn.externals.joblib import Parallel, delayed
 import os
 
-from src.core.annotations import read_annotations, localize_all_variants, CDSType
-from src.core.constants import codon_table, codon_table_compl, upstream_length, data_path
-from src.core.data_reading import read_dict, read_h37rv
+from core.annotations import read_annotations, localize_all_variants, CDSType
+from core.constants import codon_table, codon_table_compl, upstream_length, data_path
+from core.data_reading import read_dict, read_h37rv
 
 path_to_ids = data_path + 'dr_covered_with_pheno_and_snp.txt'
 path_to_snps = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_mc10/'
@@ -23,7 +23,7 @@ use_DR_genes_only = True
 thread_num = 32
 
 
-def extract_dr_genes():
+def extract_dr_genes(path_to_dictionaries):
     name, drug_to_mut_list = read_dict(path_to_dictionaries, 'Walker_dictionary')
     drug_to_gene_set = {}
     all_genes = set()
@@ -31,9 +31,8 @@ def extract_dr_genes():
         genes = set()
         for mut in mut_list:
             s = mut.split('\t')
-            if s[0] == 'Gene':
-                genes.add(s[1])
-                all_genes.add(s[1])
+            genes.add(s[1])
+            all_genes.add(s[1])
         drug_to_gene_set[drug] = genes
     return drug_to_gene_set, all_genes
 
@@ -304,7 +303,7 @@ def main():
     cds_list = read_annotations(upstream_length)
 
     if use_DR_genes_only:
-        drug_to_gene_set, all_dr_genes = extract_dr_genes()
+        drug_to_gene_set, all_dr_genes = extract_dr_genes(path_to_dictionaries)
         snp_to_cds = localize_all_variants(snp_pos_list_from_samples, cds_list, all_dr_genes)
     else:
         snp_to_cds = localize_all_variants(snp_pos_list_from_samples, cds_list)

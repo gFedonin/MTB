@@ -1,7 +1,7 @@
 from Bio import SeqIO
 from os.path import exists
 from sklearn.externals.joblib import Parallel, delayed
-
+from ete3 import Tree
 from src.core.annotations import CDSType, read_annotations, localize_all_variants
 from src.core.constants import data_path, upstream_length
 from src.core.data_reading import read_h37rv
@@ -10,26 +10,38 @@ from src.phylo_methods.print_XPARR import get_aminoacids_sense, get_aminoacids_a
 
 first_line = False
 
-if first_line:
-    path_to_pheno = data_path + 'pheno_mc5_mega_first_line/'
-    path_to_pheno_and_trees = data_path + 'reconstructed_mc10_mega_MP_first_line/'
-else:
-    path_to_pheno = data_path + 'pheno_mc5_mega_mix/'
-    path_to_pheno_and_trees = data_path + 'reconstructed_mc10_mega_MP_mix/'
-path_to_ids = data_path + 'dr_covered_with_pheno_and_snp.txt'
+# if first_line:
+#     path_to_pheno = data_path + 'pheno_mc5_mega_first_line/'
+#     path_to_pheno_and_trees = data_path + 'reconstructed_mc10_mega_MP_first_line/'
+# else:
+#     path_to_pheno = data_path + 'pheno_mc5_mega_mix/'
+#     path_to_pheno_and_trees = data_path + 'reconstructed_mc10_mega_MP_mix/'
+path_to_pheno = data_path + 'pheno_mc5_mega/'
+path_to_pheno_and_trees = data_path + 'reconstructed_mc10_mega_MP/'
+
+# path_to_ids = data_path + 'dr_covered_with_pheno_and_snp.txt'
+path_to_ids = data_path + '10drugs.sample_list'
 path_to_snps_list = data_path + 'snp_aln_with_DR_with_pheno_and_snp_mc10_old_rep.txt'
 path_to_snps = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_mc10/'
 path_to_alignment = data_path + 'ancestors_mc10_mega_merged.fasta'
 path_to_drug_codes = data_path + 'xparr/mc10_mega_MP/drug_codes.txt'
 
+print_RR = False
+
 if first_line:
-    out_path = data_path + 'xparr/mc10_mega_drugs_vs_drugs_RR_first_line.xparr'
+    if print_RR:
+        out_path = data_path + 'xparr/mc10_mega_drugs_vs_drugs_RR_first_line_fixed.xparr'
+    else:
+        out_path = data_path + 'xparr/mc10_mega_drugs_vs_drugs_first_line_fixed.xparr'
 else:
-    out_path = data_path + 'xparr/mc10_mega_drugs_vs_drugs_RR_10drugs.xparr'
+    if print_RR:
+        out_path = data_path + 'xparr/mc10_mega_drugs_vs_drugs_RR_10drugs_fixed.xparr'
+    else:
+        out_path = data_path + 'xparr/mc10_mega_drugs_vs_drugs_10drugs_fixed.xparr'
 
 overwrite = True
 thread_num = 32
-print_RR = True
+
 
 if first_line:
     drug_names = ('Isoniazid', 'Rifampicin', 'Ethambutol', 'Pyrazinamide', 'Streptomycin')
@@ -38,14 +50,22 @@ else:
                   'Amikacin', 'Capreomycin', 'Kanamycin')
 
 
-def read_parents(path_to_pheno_and_trees, drug):
+def read_parents(path_to_pheno_and_trees, drug, sample_ids):
     parents = []
+    t = Tree()
+    name_to_node = {}
     with open(path_to_pheno_and_trees + drug + '/parents.csv', 'r') as f:
-        root = f.readline().strip()
+        t.name = f.readline().strip()
+        name_to_node[t.name] = t
         for line in f.readlines():
             s = line.strip().split('\t')
-            parents.append((s[0], s[1], s[2]))
-    return root, parents
+            parent = name_to_node[s[1]]
+            child = parent.add_child(name=s[0], dist=float(s[2]))
+            name_to_node[s[0]] = child
+    t.prune(sample_ids)
+    for node in t.iter_descendants("levelorder"):
+        parents.append((node.name, node.up.name, str(node.dist)))
+    return t.name, parents
 
 
 def read_pheno(path_to_pheno, path_to_pheno_and_trees, drug):
@@ -142,21 +162,18 @@ def main():
             drug_to_number[s[0]] = s[1]
 
     drug_to_pheno = {}
-    drug_to_parents = {}
+    root, parents = read_parents(path_to_pheno_and_trees, 'Streptomycin', sample_ids)
     for drug in drug_names:
         sample_to_pheno = read_pheno(path_to_pheno, path_to_pheno_and_trees, drug)
         drug_to_pheno[drug] = sample_to_pheno
-        root, parents = read_parents(path_to_pheno_and_trees, drug)
-        drug_to_parents[drug] = (root, parents)
 
-    sample_to_mut = format_mut_lists(sample_to_seq, pos_list, ref_seq, snp_to_cds, drug_to_parents[drug_names[0]][1])
+    sample_to_mut = format_mut_lists(sample_to_seq, pos_list, ref_seq, snp_to_cds, parents)
 
     if exists(out_path) and not overwrite:
         return
 
     with open(out_path, 'w') as f:
         f.write("child\tparent\tlength\n")
-        root, parents = drug_to_parents[drug_names[0]]
         f.write(root + '\n')
         for node_id, parent_id, dist in parents:
             branch_line = [node_id, parent_id, dist]

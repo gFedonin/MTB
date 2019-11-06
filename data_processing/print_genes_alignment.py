@@ -1,9 +1,10 @@
 from Bio import SeqIO
-
 from sklearn.externals.joblib import Parallel, delayed
 
-from src.core.annotations import read_annotations, localize_all_variants, CDSType
-from src.core.constants import upstream_length
+from core.annotations import CDSType, localize_all_variants, read_annotations
+from core.constants import upstream_length
+from core.data_reading import read_h37rv
+from data_processing.print_alignment import parse_mummer, preprocess_aln, h37rv_to_canetti
 
 path_to_ids = './data/Full_subset_filtered_snp_pheno2.txt'
 path_to_snps = '/data/snps/raw_with_DR/'
@@ -11,96 +12,6 @@ out_path_aln = './data/snp_aln_genes_filtered2.fasta'
 path_to_mummer = './data/mummer1.aligns'
 path_to_ref = './data/h37rv.fasta'
 path_to_annotations = './data/AL123456_rev.gff'
-
-
-def read_h37rv():
-    fasta_sequences = SeqIO.parse(open(path_to_ref), 'fasta')
-    sequence = ''
-    for fasta in fasta_sequences:
-        sequence = str(fasta.seq)
-    return sequence.upper()
-
-
-def parse_mummer():
-    aln = []
-    aln1 = []
-    aln2 = []
-    h37rv_from = 0
-    h37rv_to = 0
-    with open(path_to_mummer, 'r') as f:
-        for line in f:
-            if line.startswith('-- BEGIN'):
-                if len(aln1) > 0:
-                    aln.append((h37rv_from, h37rv_to, ''.join(aln1), ''.join(aln2)))
-                    aln1.clear()
-                    aln2.clear()
-                s = line.split(' ')
-                h37rv_from = int(s[5])
-                h37rv_to = int(s[7])
-            else:
-                if line[0] not in ('\n', ' ', '-', '=', '/'):
-                    s = line.split()
-                    if len(aln1) == len(aln2):
-                        aln1.append(s[1])
-                    else:
-                        aln2.append(s[1])
-    aln.append((h37rv_from, h37rv_to, ''.join(aln1), ''.join(aln2)))
-    aln.sort(key=lambda tup: tup[0])
-    curr_segment = aln[0]
-    aln_filtered = []
-    for segment in aln:
-        if segment[0] <= curr_segment[1]:
-            # intersection
-            if curr_segment[1] - curr_segment[0] < segment[1] - segment[0]:
-                curr_segment = segment
-        else:
-            aln_filtered.append(curr_segment)
-            curr_segment = segment
-    aln_filtered.append(curr_segment)
-    # with open('./test.txt', 'w') as f:
-    #     for segment in aln_filtered:
-    #         f.write(segment[2] + '\n')
-    #         f.write(segment[3] + '\n')
-    return aln_filtered
-
-
-def preprocess_aln(aln):
-    aln_new = []
-    for segment in aln:
-        cannetti_seq = []
-        aln1 = segment[2]
-        aln2 = segment[3]
-        if len(aln1) != len(aln2):
-            print('wrong lens: ' + str(segment[0]) + ' ' + str(segment[1]))
-        start = 0
-        is_gap = False
-        for i in range(len(aln1)):
-            if aln1[i] == '.':
-                if not is_gap:
-                    cannetti_seq.append(aln2[start:i])
-                    is_gap = True
-            else:
-                if is_gap:
-                    start = i
-                    is_gap = False
-        if start > 0:
-            cannetti_seq.append(aln2[start:len(aln2)])
-            aln_new.append((segment[0], segment[1], ''.join(cannetti_seq)))
-        else:
-            aln_new.append((segment[0], segment[1], aln2))
-    # for segment in aln_new:
-    #     if segment[1] - segment[0] != len(segment[2]) - 1:
-    #         print('post proc err: ' + str(segment[0]) + ' ' + str(segment[1]))
-    return aln_new
-
-
-def h37rv_to_canetti(aln, pos):
-    for segment in aln:
-        if segment[0] <= pos <= segment[1]:
-            if segment[2][pos - segment[0]] == '.':
-                return '-'
-            return segment[2][pos - segment[0]]
-    return ''
 
 
 def read_snps(sample_id):
@@ -140,7 +51,7 @@ def main():
     for snp in all_snps:
         cds = snp_to_cds[snp]
         if cds is not None and cds.type == CDSType.Gene:
-            snps_in_genes.append(cds)
+            snps_in_genes.append(snp)
 
     with open(out_path_aln, 'w') as f:
         f.write('>H37Rv\n')

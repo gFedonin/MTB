@@ -1,7 +1,7 @@
 from bisect import bisect_left, bisect_right
 from enum import Enum
 
-from src.core.constants import data_path, upstream_length
+from core.constants import data_path, upstream_length
 
 path_to_annotations = data_path + 'AL123456_rev.gff'
 
