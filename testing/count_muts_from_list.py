@@ -1,5 +1,5 @@
-from src.core.constants import data_path
-from src.core.data_reading import read_all_variants
+from core.constants import data_path
+from core.data_reading import read_all_variants
 
 path_to_variants = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_no_win_qual_mqm_std3_mqm30_filter_samples_first/'
 # path_to_list = path_to_variants + 'filtered_raw_variants_pos_converted.csv'

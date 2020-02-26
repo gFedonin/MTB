@@ -1,9 +1,9 @@
 import os
 from os.path import exists
 
-from src.core.annotations import read_annotations
-from src.core.constants import data_path, upstream_length
-from src.core.data_reading import read_dict
+from core.annotations import read_annotations
+from core.constants import data_path, upstream_length
+from core.data_reading import read_dict
 
 path_to_features = '../../res/ml_log_mc1-noncds_long_del/'
 path_to_dict = data_path + 'dictionaries_indels/'

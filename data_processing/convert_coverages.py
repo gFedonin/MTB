@@ -1,4 +1,4 @@
-from os import mkdir
+from os import mkdir, listdir
 
 import numpy as np
 from os.path import exists
@@ -7,11 +7,18 @@ from sklearn.externals.joblib import Parallel, delayed
 
 from core.constants import ref_len, data_path
 
+# data_set = 'walker18'
+# data_set = 'coll18'
+data_set = 'missing'
 # path_to_coverages = '/export/data/kkuleshov/myc/sra/'
-path_to_coverages = data_path + 'coverages/'
-path_to_ids = data_path + 'all_with_pheno.txt'
+# path_to_coverages = data_path + 'coverages_rm_dup/'
+path_to_coverages = data_path + data_set + '/coverages/'
+# path_to_ids = data_path + 'all_with_pheno.txt'
+path_to_ids = data_path + data_set + '/' + data_set + '_trimmed.list'
+# path_to_ids = data_path + data_set + '/' + data_set + '_new.samples'
 # out_path = data_path + 'coverages_with_percentiles/t5p5/'
-out_path = data_path + 'coverages_shrinked/'
+# out_path = data_path + 'coverages_shrinked_rm_dup/'
+out_path = data_path + data_set + '/coverages_shrinked/'
 coverage_threshold = 5
 percentile = 5
 
@@ -66,11 +73,79 @@ def read_depth_file_and_shrink(sample_id):
                 for line in fin.readlines():
                     s = line.strip().split('\t')
                     fout.write(s[2] + '\n')
+        return 1
+
+
+# path_to_mapping = data_path + data_set + '/err_to_samea.csv'
+path_to_mapping = data_path + data_set + '/' + data_set + '_id_mapping.csv'
+
+
+def read_depth_file_shrink_and_rename(sample_id, samea_id):
+    if not exists(out_path + samea_id + '.cov'):
+        with open(path_to_coverages + sample_id + '.depth') as fin:
+            with open(out_path + samea_id + '.cov', 'w') as fout:
+                for line in fin.readlines():
+                    s = line.strip().split('\t')
+                    fout.write(s[2] + '\n')
+        return 1
+
+
+def shrink_and_rename_all():
+    if not exists(out_path):
+        mkdir(out_path)
+    err_to_samea = {}
+    for l in open(path_to_mapping).readlines():
+        s = l.strip().split('\t')
+        err_to_samea[s[0]] = s[1]
+    sample_ids = [fname[:fname.index('.')] for fname in listdir(path_to_coverages)]
+    tasks = Parallel(n_jobs=-1)(delayed(read_depth_file_shrink_and_rename)(sample_id, err_to_samea[sample_id])
+                                for sample_id in sample_ids if not exists(out_path + err_to_samea[sample_id] + '.cov'))
+    c = 0
+    for task in tasks:
+        c += task
+    print(str(c))
+    # for fname in listdir(path_to_coverages):
+    #     sample_id = fname[:fname.index('.')]
+    #     read_depth_file_shrink_and_rename(sample_id, err_to_samea[sample_id])
+
+
+def shrink_all():
+    if not exists(out_path):
+        mkdir(out_path)
+    sample_ids = [fname[:fname.index('.')] for fname in listdir(path_to_coverages)]
+    tasks = Parallel(n_jobs=-1)(delayed(read_depth_file_and_shrink)(sample_id)
+                                for sample_id in sample_ids if not exists(out_path + sample_id + '.cov'))
+    c = 0
+    for task in tasks:
+        c += task
+    print(str(c))
+    # for sample_id in sample_ids:
+    #     read_depth_file_and_shrink(sample_id)
+
+
+def find_duplicates():
+    err_to_samea = {}
+    for l in open(path_to_mapping).readlines():
+        s = l.strip().split('\t')
+        err_to_samea[s[0]] = s[1]
+    sample_ids = [sample_id.strip() for sample_id in open(path_to_ids, 'r').readlines()]
+    samea_to_ids = {}
+    for sample_id in sample_ids:
+        for info, samea in err_to_samea:
+            if sample_id in info:
+                ids = samea_to_ids.get(samea)
+                if ids is None:
+                    ids = [sample_id]
+                    samea_to_ids[samea] = ids
+                else:
+                    ids.append(sample_id)
+                break
+    for samea, ids in samea_to_ids.items():
+        if len(ids) > 1:
+            print(samea + '\t' + ','.join(ids))
 
 
 if __name__ == '__main__':
-    if not exists(out_path):
-        mkdir(out_path)
-    sample_ids = [sample_id.strip() for sample_id in open(path_to_ids, 'r').readlines()]
-    for sample_id in sample_ids:
-        read_depth_file_and_shrink(sample_id)
+    # shrink_all()
+    shrink_and_rename_all()
+    # find_duplicates()

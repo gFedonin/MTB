@@ -1,8 +1,11 @@
 from Bio import SeqIO
 from sklearn.externals.joblib import Parallel, delayed
 
-path_to_alignment = './data/snp_aln_no_DR_filtered2.fasta'
-out_path = './data/snp_aln_no_DR_filtered2.dist'
+from core.constants import data_path
+
+path_to_alignment = data_path + 'combined_mq40_keep_complex_std_names_filtered_no_DR.fasta'
+out_path = '../../res/combined_mq40_keep_complex_std_names_filtered_no_DR.dist'
+
 
 def check_seq(h37rv, seq):
     c = 0
@@ -12,7 +15,17 @@ def check_seq(h37rv, seq):
     return seq.name + '\t' + str(c) + '\n'
 
 
-def main():
+def check_pairs():
+    fasta_sequences = [r for r in SeqIO.parse(open(path_to_alignment), 'fasta')]
+    for i in range(len(fasta_sequences)):
+        seq_i = fasta_sequences[i].seq
+        for j in range(i + 1, len(fasta_sequences)):
+            seq_j = fasta_sequences[j].seq
+            if seq_i == seq_j:
+                print(fasta_sequences[i].id + ' ' + fasta_sequences[j].id)
+
+
+def compute_dist_to_ref():
     fasta_sequences = SeqIO.parse(open(path_to_alignment), 'fasta')
     h37rv = ''
     seq_list = []
@@ -28,4 +41,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    # compute_dist_to_ref()
+    check_pairs()

@@ -3,20 +3,24 @@ from os import makedirs
 from os.path import exists
 from subprocess import check_call, call
 
+from Bio import pairwise2
 from sklearn.externals.joblib import Parallel, delayed
 
 from core.constants import data_path
 from core.data_reading import path_to_ref
 
 # path_to_ids = data_path + 'coll18/coll1.txt'
-# path_to_ids = data_path + 'debug1.list'
-path_to_ids = data_path + 'list_54.txt'
-# path_to_ids = data_path + 'all_with_pheno.txt'
+from data_processing.parse_gatk_variants import in_filter_interval, get_intervals_to_filter_out
+
+# path_to_ids = data_path + 'debug4.list'
+# path_to_ids = data_path + 'list1.txt'
+path_to_ids = data_path + 'all_with_pheno.txt'
 path_to_bams = data_path + 'bwa_mem_rev/'
 # path_to_bams = data_path + 'coll18/bwa_mem_rev/'
 out_path = data_path + 'pilon/'
 out_path_bam = data_path + 'pilon_minimap/'
 out_path_variants = data_path + 'snps/pilon/raw_variants/'
+out_path_reduced_vcf = data_path + 'snps/pilon/reduced_vcf/'
 
 min_alt_frac = 0.75
 min_dp = 10
@@ -29,7 +33,7 @@ thread_num = '8'
 def run_pilon(sample_id):
     if not exists(out_path + sample_id):
         makedirs(out_path + sample_id)
-    check_call('java -Xmx4G -jar ~/pilon-1.23.jar --threads ' + thread_num +
+    call('java -Xmx8G -jar ~/pilon-1.23.jar --threads ' + thread_num +
                ' --variant --vcf --genome ' + path_to_ref +
                ' --frags ' + path_to_bams + sample_id + '_h37rv.bam --outdir ' + out_path +
                sample_id + ' > ' + out_path + sample_id + '/log.txt 2> ' + out_path + sample_id + '/log.txt',
@@ -45,15 +49,15 @@ def run_pilon(sample_id):
     #             continue
     #         f.write(l)
     # check_call('rm ' + out_path + sample_id + '/pilon.vcf', shell=True)
-    call('gzip ' + out_path + sample_id + '/pilon.vcf', shell=True, cwd=out_path + sample_id)
+    call('pigz ' + out_path + sample_id + '/pilon.vcf', shell=True, cwd=out_path + sample_id)
     return 1
 
 
 def pilon_all():
     sample_ids = [l.strip() for l in open(path_to_ids).readlines()]
-    tasks = Parallel(n_jobs=8)(delayed(run_pilon)(sample_id) for sample_id in sample_ids
+    tasks = Parallel(n_jobs=16)(delayed(run_pilon)(sample_id) for sample_id in sample_ids
                                if exists(path_to_bams + sample_id + '_h37rv.bam') and
-                               not exists(out_path + sample_id + 'pilon.fasta'))
+                               not exists(out_path + sample_id + '/pilon.fasta'))
     c = 0
     for task in tasks:
         c += task
@@ -67,35 +71,54 @@ def parse_stats(stat_str):
         if i == -1:
             stats[s] = None
         else:
-            stats[s[:i]] = s[i + 1]
+            stats[s[:i]] = s[i + 1:]
     return stats
 
 
-def parse_pilon_vcf():
-    sample_ids = [l.strip() for l in open(path_to_ids).readlines()]
-    for sample_id in sample_ids:
-        with open(out_path_variants + sample_id + '.variants', 'w') as f:
+def parse_pilon_vcf(sample_id, filter_intervals):
+    filter_intervals_starts = [x[0] for x in filter_intervals]
+    if not exists(out_path + sample_id + '/pilon.vcf.gz'):
+        return 0
+    if exists(out_path_variants + sample_id + '.variants'):
+        with open(out_path_variants + sample_id + '.variants') as f:
+            if f.readline() != '':
+                return 0
+    print(sample_id)
+    with open(out_path_variants + sample_id + '.variants', 'w') as f:
+        with open(out_path_reduced_vcf + sample_id + '.vcf', 'w') as fvcf:
             for l in gzip.open(out_path + sample_id + '/pilon.vcf.gz', 'rt').readlines():
                 if l[0] == '#':
                     continue
                 s = l.strip().split('\t')
-                pos = int(s[1])
+                pos = s[1]
                 ref = s[3]
                 alt = s[4]
                 if s[6] == 'PASS' or s[6] == 'Amb':
+                    if alt == '.':
+                        continue
                     stats = parse_stats(s[-3])
                     if 'IMPRECISE' in stats:
                         continue
-                    if int(stats['DP']) < min_dp:
+                    stat_dp = stats.get('DP')
+                    if stat_dp is not None and int(stat_dp) < min_dp:
                         continue
-                    if float(stats['AF']) < min_alt_frac:
+                    stat = stats.get('AF')
+                    if stat is not None and float(stat) < min_alt_frac:
                         continue
-                    if int(stats['MQ']) < min_mq:
+                    stat = stats.get('MQ')
+                    if stat is not None and int(stat) < min_mq:
                         continue
-                    if int(stats['BQ']) < min_bq:
+                    stat = stats.get('BQ')
+                    if stat is not None and int(stat) < min_bq:
                         continue
-                    if int(stats['XC']) > int(stats['DP']):
+                    stat = stats.get('XC')
+                    if stat is not None and stat_dp is not None and (int(stat) > int(stat_dp)):
                         continue
+                    if in_filter_interval(int(pos), filter_intervals_starts, filter_intervals):
+                        continue
+                    f.write(pos + '\t' + ref + '\t' + alt + '\n')
+                    fvcf.write(l)
+    return 1
 
 
 def minimap(id):
@@ -115,6 +138,70 @@ def map_all_contigs():
         minimap(sample_id)
 
 
+def parse_complex_event(pos, old, new):
+    res = []
+    if new == '*':
+        for i in range(len(old)):
+            res.append((pos + i, '-', 'del'))
+        return res
+    if old == '*':
+        res.append((pos, new, 'ins'))
+        return res
+    aln = pairwise2.align.globalms(old, new, 2, -1, -1, -.1)[0]
+    aln_old = aln[0]
+    aln_new = aln[1]
+    insert_pos = 0
+    insert_s = 0
+    insert = False
+    p = 0
+    for i in range(len(aln_old)):
+        c1 = aln_old[i]
+        c2 = aln_new[i]
+        if c1 != c2:
+            if c1 == '-':
+                # ins
+                if not insert:
+                    insert_pos = p
+                    insert_s = i
+                    insert = True
+            elif c2 == '-':
+                #del
+                if insert:
+                    res.append((pos + insert_pos, aln_new[insert_s: i], 'ins'))
+                    insert = False
+                res.append((pos + p, c2, 'del'))
+                p += 1
+            else:
+                if insert:
+                    res.append((pos + insert_pos, aln_new[insert_s: i], 'ins'))
+                    insert = False
+                res.append((pos + p, c2, 'snp'))
+                p += 1
+        else:
+            if insert:
+                res.append((pos + insert_pos, aln_new[insert_s: i], 'ins'))
+                insert = False
+            p += 1
+    if insert:
+        res.append((pos + insert_pos, aln_new[insert_s:], 'ins'))
+    return res
+
+
+def parse_all_vcf():
+    if not exists(out_path_variants):
+        makedirs(out_path_variants)
+    if not exists(out_path_reduced_vcf):
+        makedirs(out_path_reduced_vcf)
+    sample_ids = [l.strip() for l in open(path_to_ids).readlines()]
+    filter_intervals = get_intervals_to_filter_out()
+    tasks = Parallel(n_jobs=-1)(delayed(parse_pilon_vcf)(sample_id, filter_intervals) for sample_id in sample_ids)
+    c = 0
+    for task in tasks:
+        c += task
+    print('%d samples proccessed' % c)
+
+
 if __name__ == '__main__':
-    pilon_all()
+    # pilon_all()
     # map_all_contigs()
+    parse_all_vcf()

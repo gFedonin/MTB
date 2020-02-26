@@ -1,8 +1,6 @@
 from bisect import bisect_left
 from random import shuffle
 
-import scipy.stats as stat
-
 from scipy.sparse import lil_matrix
 from sklearn import clone
 from sklearn.metrics import confusion_matrix, roc_auc_score, f1_score
@@ -11,7 +9,6 @@ from sklearn.externals.joblib import Parallel, delayed
 from core.annotations import read_annotations, CDSType
 from core.constants import upstream_length
 from data_processing.print_mutations_extended import process_variants
-import numpy as np
 
 
 class MTBPredictor:
@@ -46,7 +43,6 @@ class MTBPredictor:
         for sample_id, snp_list in mut_train.items():
             res = []
             for snp in snp_list:
-                s = snp.split('\t')
                 if self.snp_count_threshold < snp_to_count[snp] < sample_num - self.snp_count_threshold:
                     res.append(snp)
                     all_snps_set.add(snp)
@@ -87,7 +83,7 @@ class MTBPredictor:
             j = bisect_left(random_coefs, abs(self.clf.coef_[0][i]))
             self.p_values.append((self.iterNum - j)/self.iterNum)
 
-    def train(self, mut_train, pheno_train):
+    def train(self, mut_train, pheno_train, split_id=0):
         X_train, y_train = self.create_sparse_matrix(mut_train, pheno_train)
         self.clf.fit(X_train, y_train)
         if self.compute_pvalues:
@@ -99,7 +95,7 @@ class MTBPredictor:
         # self.z_scores = self.clf.coef_[0]/sigma_estimates # z-score for eaach model coefficient
         # self.p_values = [stat.norm.sf(abs(x))*2*self.snp_num for x in self.z_scores] ### two tailed test for p-values
 
-    def compute_stat(self, mut_test, pheno_test):
+    def compute_stat(self, mut_test, pheno_test, split_id=0):
         sample_ids = list(mut_test.keys())
         sample_num = len(sample_ids)
         X_test = lil_matrix((sample_num, self.snp_num), dtype=int)
@@ -111,28 +107,32 @@ class MTBPredictor:
                     X_test[i, index] = 1
             y_test.append(pheno_test[sample_ids[i]])
         y_pred = self.clf.predict(X_test)
-        cm = confusion_matrix(y_test, y_pred)
-        tp_score = cm[1, 1]
-        tn_score = cm[0, 0]
-        fp_score = cm[0, 1]
-        fn_score = cm[1, 0]
-        if tp_score + fp_score > 0:
-            ppv = tp_score / (tp_score + fp_score)
+        tn, fp, fn, tp = confusion_matrix(y_test, y_pred, labels=[0,1]).ravel()
+        if tp + fp > 0:
+            ppv = tp / (tp + fp)
         else:
             ppv = 0
-        if tn_score + fn_score > 0:
-            npv = tn_score / (tn_score + fn_score)
+        if tn + fn > 0:
+            npv = tn / (tn + fn)
         else:
             npv = 0
-        if tp_score + fn_score > 0:
-            sensitivity = tp_score / (tp_score + fn_score)
+        if tp + fn > 0:
+            sensitivity = tp / (tp + fn)
         else:
             sensitivity = 0
-        if tn_score + fp_score > 0:
-            specificity = tn_score / (tn_score + fp_score)
+        if tn + fp > 0:
+            specificity = tn / (tn + fp)
         else:
             specificity = 0
-        return ppv, npv, sensitivity, specificity, f1_score(y_test, y_pred), roc_auc_score(y_test, y_pred)
+        try:
+            f1 = f1_score(y_test, y_pred)
+        except:
+            f1 = 0
+        try:
+            auc = roc_auc_score(y_test, y_pred)
+        except:
+            auc = 0
+        return ppv, npv, sensitivity, specificity, f1, auc
 
     def print_selected_features(self):
         with open(self.log_path, 'w') as f:

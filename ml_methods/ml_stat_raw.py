@@ -17,8 +17,9 @@ path_to_pheno = data_path + 'pheno_mc5_mega/'
 # path_to_var = data_path + 'snps/gatk_before_cortex/raw_variants_ld/'
 # path_to_var = data_path + 'snps/freebayes_after_cortex/raw_no_win_qual_mqm_std3_mqm30_no_highcov_ld/'
 # path_to_var = data_path + 'snps/skesa_mummer_raw_ld_mum4_q30/'
-path_to_var = data_path + 'snps/skesa_minimap_mapq_raw/'
+# path_to_var = data_path + 'snps/skesa_minimap_mapq_raw/'
 # path_to_var = data_path + 'snps/gatk_before_cortex/raw_variants_no_gvcf_mc10_ld/'
+path_to_var = data_path + 'snps/pilon/raw_variants/'
 path_to_ids = data_path + 'all_with_pheno.txt'
 path_to_subsets = data_path + 'subsets/'
 
@@ -26,8 +27,9 @@ path_to_subsets = data_path + 'subsets/'
 # log_path = '../../res/ml_svm_mc3_gatk_before/'
 # log_path = '../../res/ml_log_mc3_freebayes_after_cortex/'
 # log_path = '../../res/ml_log_mc3_skesa_mum4_q30/'
-log_path = '../../res/ml_log_mc3_skesa_minimap/'
+# log_path = '../../res/ml_log_mc3_skesa_minimap/'
 # log_path = '../../res/ml_log_mc3_gatk_before_no_gvcf_mc10/'
+log_path = '../../res/ml_log_mc3_pilon/'
 
 snp_count_threshold = 3
 

@@ -12,16 +12,25 @@ from core.data_reading import read_pheno, read_subset, read_snp_list
 from ml_methods.mtb_predictor import MTBPredictor, MTBPredictorExtended, MTBPredictorPairs
 
 path_to_pheno = data_path + 'pheno_mc5_mega/'
-# path_to_var = data_path + 'snps/annotated_with_DR_with_indel_with_pheno_and_snp_no_win_qual_mqm_std3_mqm30_no_highcov_long_del_pg_NWds10_str10/'
+# path_to_var = data_path + 'snps/annotated_with_DR_with_indel_with_pheno_and_snp_no_win_mqm_std3_mqm30_long_del_pg_filter_samples_first/'
+# path_to_var = data_path + 'snps/annotated_pg_NWds10_no_win_qual_mqm_std3_mqm30_filter_samples_first/'
 # path_to_var = data_path + 'snps/gatk_before_cortex/annotated_long_del_pg_NWds10/'
-path_to_var = data_path + 'snps/skesa_mum4_annotated_long_del_pg_NWds10/'
+# path_to_var = data_path + 'snps/skesa_mum4_annotated_long_del_pg_NWds10/'
+# path_to_var = data_path + 'snps/pilon/annotated_pg_NWds10_filtered_test/'
+# path_to_var = data_path + 'snps/gatk_before_cortex/annotated_pg_NWds10_mq40_keep_complex_filtered_test/'
+path_to_var = data_path + 'snps/gatk_and_pilon/unification/'
 # path_to_ids = data_path + 'snps/intersect.list'#'snps/raw_with_DR_with_indel_with_pheno_and_snp_no_win_m3_filter_samples_first/samples_filtered.list'#'dr_covered_with_pheno_and_snp_new.txt'
-path_to_ids = data_path + 'all_with_pheno.txt'
+# path_to_ids = data_path + 'all_with_pheno.txt'
+path_to_ids = data_path + 'snps/gatk_pilon_old_intersection.list'
 path_to_subsets = data_path + 'subsets/'
 
-# log_path = '../../res/ml_log_mc1-noncds_long_del_pg_ext_NWds10_str10/'
+# log_path = '../../res/ml_log_mc1-noncds_long_del_pg_ext_NWds10_no_win_qual_mqm_std3_long_del_pg_filter_samples_first/'
+# log_path = '../../res/ml_log_mc1-noncds_long_del_pg_no_win_qual_mqm_std3_filter_samples_first/'
 # log_path = '../../res/ml_log_mc3_gatk_before_annotated_long_del_pg_NWds10/'
-log_path = '../../res/ml_log_mc3_skesa_mum4_annotated_long_del_pg_NWds10/'
+# log_path = '../../res/ml_log_mc3_skesa_mum4_annotated_long_del_pg_NWds10/'
+# log_path = '../../res/ml_log_mc1_pilon_annotated_long_del_pg_NWds10_filtered/'
+# log_path = '../../res/ml_log_mc1_gatk_annotated_long_del_pg_NWds10_mq40_keep_complex_filtered/'
+log_path = '../../res/ml_log_mc1_gatk_pilon_unification/'
 
 use_extended_features = True
 merge_all_mut_in_pos = True
@@ -32,12 +41,12 @@ drop_hypothetical = False
 keep_proteomic_validated_only = False
 keep_only_not_hypotetical_or_proteomic_validated = False
 upstream_indel_breakes_gene = True
-snp_count_threshold = 3
+snp_count_threshold = 1
 
 use_pairs = False
 jaccard_index_threshold = 0.9
 
-thread_num = 144
+thread_num = 32
 
 filter_by_var_list = False
 path_to_var_list = path_to_var + 'dr_genes_var_list.csv'
@@ -190,7 +199,8 @@ def main():
 
     sample_to_variants = read_all_variants(sample_ids)
 
-    tasks = Parallel(n_jobs=thread_num)(delayed(split_dataset)(drug, pheno, sample_to_variants, set_name_to_list['Walker_subset'])
+    tasks = Parallel(n_jobs=thread_num)(delayed(split_dataset)(drug, pheno, sample_to_variants,
+                                                               set_name_to_list['Walker_subset'])
                      for drug, pheno in drug_to_pheno.items())
 
     drug_to_splits = {}
@@ -226,7 +236,7 @@ def main():
             f.write('jaccard_index_threshold = %1.2f\n' % jaccard_index_threshold)
 
         f.write('LR_l1 C1\n\n')
-        clf = LogisticRegression(penalty='l1', dual=False, class_weight='balanced', C=1)
+        clf = LogisticRegression(penalty='l1', dual=False, class_weight='balanced', C=1, solver='liblinear')
         # f.write('NN k = 1\n\n')
         # clf = KNeighborsClassifier(n_neighbors=1, p=1, n_jobs=-1)
         # f.write('RF n=10000\n\n')

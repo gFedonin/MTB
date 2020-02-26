@@ -13,12 +13,15 @@ from core.constants import (codon_table, codon_table_compl, complement,
                                 data_path, upstream_length)
 from core.data_reading import read_h37rv
 
-path_to_variants = data_path + 'snps/gatk_before_cortex/raw_variants/'
-out_path = data_path + 'snps/gatk_before_cortex/annotated_long_del_pg_NWds10/'
+# path_to_variants = data_path + 'snps/gatk_before_cortex/raw_variants_fixed_no_rep/'
+path_to_variants = data_path + 'snps/combined_raw_variants_mq40_keep_complex_std_names_filtered/'
+# out_path = data_path + 'snps/gatk_before_cortex/annotated_fixed_no_rep_long_del_pg_NWds10/'
+out_path = data_path + 'snps/annotated_fixed_no_rep_long_del_pg_NWds10_combined/'
 # path_to_snps = data_path + 'snps/skesa_mummer_raw_mum4/'
 # out_path = data_path + 'snps/skesa_mum4_annotated_long_del_pg_NWds10/'
 out_path_snp = out_path + 'all_var_list.csv'
-debug_path = data_path + 'snps/gatk_before_cortex/dead_genes/'
+# broken_genes_path = data_path + 'snps/gatk_before_cortex/dead_genes_fixed_no_rep/'
+broken_genes_path = data_path + 'snps/dead_genes_combined/'
 # debug_path = data_path + 'snps/skesa_mum4_dead_genes/'
 
 thread_num = 32
@@ -26,7 +29,7 @@ thread_num = 32
 
 split_dels = False
 translate_pseudogene = False
-add_codons_to_frameshift = 0.1
+# add_codons_to_frameshift = 0.1
 shortening_threshold = 0.9
 
 
@@ -263,7 +266,7 @@ def process_gene_snp_only(gene, var_list, ref_seq, res, fout):
             aa_ref, aa_alt, j = get_aminoacids_sense(ref_seq, nucleotide_pos, var_list, j)
 
             if aa_ref != aa_alt:
-                if alt == '*':
+                if aa_alt == '*':
                     # early stop codon
                     if pos - gene.start < shortening_threshold * (gene.end - gene.start + 1):
                         # new gene is too short
@@ -288,7 +291,7 @@ def process_gene_snp_only(gene, var_list, ref_seq, res, fout):
             aa_ref, aa_alt, j = get_aminoacids_antisense(ref_seq, nucleotide_pos, var_list, j)
 
             if aa_ref != aa_alt:
-                if alt == '*':
+                if aa_alt == '*':
                     # early stop codon
                     if gene.end - pos < shortening_threshold * (gene.end - gene.start + 1):
                         # new gene is too short
@@ -308,136 +311,155 @@ def process_gene_snp_only(gene, var_list, ref_seq, res, fout):
         res.extend(snps)
 
 
-def process_gene_with_indels1(gene, var_list, ref_seq, res, fout):
+# def process_gene_with_indels1(gene, var_list, ref_seq, res, fout):
+#
+#     def align_proteins(translated_old, translated_new):
+#         # gap open/extension penalty combination for PAM120 is -16/-4, PAM250 -11/-1, BLOSUM50 -10/-2,
+#         # BLOSUM62 -7/-1, as recommended by Vingron and Waterman, Mount, and Pearson
+#         try:
+#             alignment = \
+#             pairwise2.align.globalds(str(translated_old)[:-1], str(translated_new)[:stop], blosum62, -7, -1)[0]
+#             aln_old = alignment[0]
+#             aln_new = alignment[1]
+#             insert_pos = 0
+#             insert_s = 0
+#             insert = False
+#             del_pos = 0
+#             del_s = 0
+#             deletion = False
+#             p = 0
+#             for i in range(len(aln_old)):
+#                 c1 = aln_old[i]
+#                 c2 = aln_new[i]
+#                 if c1 != c2:
+#                     if c1 == '-':
+#                         # ins
+#                         if deletion and not split_dels:
+#                             res.append('\t'.join(
+#                                 (gene.type.name, gene.name, str(del_pos + 1), aln_old[del_s: i], '-', 'del')))
+#                             deletion = False
+#                         if not insert:
+#                             insert_pos = p
+#                             insert_s = i
+#                             insert = True
+#                     elif c2 == '-':
+#                         # del
+#                         if insert:
+#                             res.append('\t'.join(
+#                                 (gene.type.name, gene.name, str(insert_pos + 1), '-', aln_new[insert_s: i], 'ins')))
+#                             insert = False
+#                         if split_dels:
+#                             res.append('\t'.join(
+#                                 (gene.type.name, gene.name, str(p + 1), c1, c2, 'del')))
+#                         else:
+#                             if not deletion:
+#                                 del_pos = p
+#                                 del_s = i
+#                                 deletion = True
+#                         p += 1
+#                     else:
+#                         if insert:
+#                             res.append('\t'.join(
+#                                 (gene.type.name, gene.name, str(insert_pos + 1), '-', aln_new[insert_s: i], 'ins')))
+#                             insert = False
+#                         res.append('\t'.join(
+#                             (gene.type.name, gene.name, str(p + 1), c1, c2, 'snp')))
+#                         p += 1
+#                 else:
+#                     if insert:
+#                         res.append('\t'.join(
+#                             (gene.type.name, gene.name, str(insert_pos + 1), '-', aln_new[insert_s: i], 'ins')))
+#                         insert = False
+#                     if deletion and not split_dels:
+#                         res.append('\t'.join(
+#                             (gene.type.name, gene.name, str(del_pos + 1), aln_old[del_s: i], '-', 'del')))
+#                         deletion = False
+#                     p += 1
+#         except:
+#             print('error: stop=%d' % stop)
+#
+#     seq_new = []
+#     new_len = 0
+#     s = gene.start - 1
+#     for pos, alt, v_type in var_list:
+#         if v_type == 'snp':
+#             seq_new.append(ref_seq[s: pos - 1])
+#             new_len += pos - s
+#             seq_new.append(alt)
+#             s = pos
+#         elif v_type == 'ins':
+#             seq_new.append(ref_seq[s: pos])
+#             seq_new.append(alt)
+#             new_len += pos - s + len(alt)
+#             s = pos
+#         else:
+#             # del
+#             if s != pos - 1:
+#                 seq_new.append(ref_seq[s: pos - 1])
+#                 new_len += pos - 1 - s
+#             s = pos
+#     seq_new.append(ref_seq[s:gene.end])
+#     new_len += gene.end - s
+#     if new_len % 3 != 0:
+#         # res.append('\t'.join(
+#         #     (gene.type.name, gene.name, '-', '-', '-', 'FS')))
+#         # continue
+#         # add some more letters to the end, might be new stop codon
+#         seq_new.append(ref_seq[gene.end: gene.end + 3 - new_len % 3 +
+#                                          3 * int(add_codons_to_frameshift * (gene.end - gene.start + 1))])
+#     else:
+#         seq_new.append(ref_seq[gene.end: gene.end +
+#                                          3 * int(add_codons_to_frameshift * (gene.end - gene.start + 1))])
+#     seq_old = Seq(ref_seq[gene.start - 1: gene.end])
+#     if len(seq_old) % 3 != 0:
+#         print(gene.name + ' wrong annotation')
+#         return
+#     seq_new = Seq(''.join(seq_new))
+#     # if new_len != len(seq_new):
+#     #     print('we have a problem!')
+#     if gene.strand == 1:
+#         translated_old = seq_old.translate()
+#         translated_new = seq_new.translate()
+#     else:
+#         translated_old = seq_old.reverse_complement().translate()
+#         translated_new = seq_new.reverse_complement().translate()
+#     # alignment = pairwise2.align.globalxx(str(translated_old), str(translated_new))[0]
+#     stop = -1
+#     for i in range(len(translated_new)):
+#         if translated_new[i] == '*':
+#             stop = i
+#             break
+#     if stop == -1 or stop == 0 or len(translated_new) < shortening_threshold * len(translated_old):
+#         fout.write(gene.name + '\n')
+#         fout.write('reference:\n')
+#         fout.write(str(translated_old))
+#         fout.write('\nmutated:\n')
+#         fout.write(str(translated_new))
+#         fout.write('\n')
+#         # gene is broken -> FS
+#         res.append('\t'.join((gene.type.name, gene.name, '-', '-', '-', 'FS')))
+#         return
+#     else:
+#         align_proteins(translated_old, translated_new)
 
-    def align_proteins(translated_old, translated_new):
-        # gap open/extension penalty combination for PAM120 is -16/-4, PAM250 -11/-1, BLOSUM50 -10/-2,
-        # BLOSUM62 -7/-1, as recommended by Vingron and Waterman, Mount, and Pearson
-        try:
-            alignment = \
-            pairwise2.align.globalds(str(translated_old)[:-1], str(translated_new)[:stop], blosum62, -7, -1)[0]
-            aln_old = alignment[0]
-            aln_new = alignment[1]
-            insert_pos = 0
-            insert_s = 0
-            insert = False
-            del_pos = 0
-            del_s = 0
-            deletion = False
-            p = 0
-            for i in range(len(aln_old)):
-                c1 = aln_old[i]
-                c2 = aln_new[i]
-                if c1 != c2:
-                    if c1 == '-':
-                        # ins
-                        if deletion and not split_dels:
-                            res.append('\t'.join(
-                                (gene.type.name, gene.name, str(del_pos + 1), aln_old[del_s: i], '-', 'del')))
-                            deletion = False
-                        if not insert:
-                            insert_pos = p
-                            insert_s = i
-                            insert = True
-                    elif c2 == '-':
-                        # del
-                        if insert:
-                            res.append('\t'.join(
-                                (gene.type.name, gene.name, str(insert_pos + 1), '-', aln_new[insert_s: i], 'ins')))
-                            insert = False
-                        if split_dels:
-                            res.append('\t'.join(
-                                (gene.type.name, gene.name, str(p + 1), c1, c2, 'del')))
-                        else:
-                            if not deletion:
-                                del_pos = p
-                                del_s = i
-                                deletion = True
-                        p += 1
-                    else:
-                        if insert:
-                            res.append('\t'.join(
-                                (gene.type.name, gene.name, str(insert_pos + 1), '-', aln_new[insert_s: i], 'ins')))
-                            insert = False
-                        res.append('\t'.join(
-                            (gene.type.name, gene.name, str(p + 1), c1, c2, 'snp')))
-                        p += 1
-                else:
-                    if insert:
-                        res.append('\t'.join(
-                            (gene.type.name, gene.name, str(insert_pos + 1), '-', aln_new[insert_s: i], 'ins')))
-                        insert = False
-                    if deletion and not split_dels:
-                        res.append('\t'.join(
-                            (gene.type.name, gene.name, str(del_pos + 1), aln_old[del_s: i], '-', 'del')))
-                        deletion = False
-                    p += 1
-        except:
-            print('error: stop=%d' % stop)
 
-    seq_new = []
-    new_len = 0
-    s = gene.start - 1
-    for pos, alt, v_type in var_list:
-        if v_type == 'snp':
-            seq_new.append(ref_seq[s: pos - 1])
-            new_len += pos - s
-            seq_new.append(alt)
-            s = pos
-        elif v_type == 'ins':
-            seq_new.append(ref_seq[s: pos])
-            seq_new.append(alt)
-            new_len += pos - s + len(alt)
-            s = pos
-        else:
-            # del
-            if s != pos - 1:
-                seq_new.append(ref_seq[s: pos - 1])
-                new_len += pos - 1 - s
-            s = pos
-    seq_new.append(ref_seq[s:gene.end])
-    new_len += gene.end - s
-    if new_len % 3 != 0:
-        # res.append('\t'.join(
-        #     (gene.type.name, gene.name, '-', '-', '-', 'FS')))
-        # continue
-        # add some more letters to the end, might be new stop codon
-        seq_new.append(ref_seq[gene.end: gene.end + 3 - new_len % 3 +
-                                         3 * int(add_codons_to_frameshift * (gene.end - gene.start + 1))])
-    else:
-        seq_new.append(ref_seq[gene.end: gene.end +
-                                         3 * int(add_codons_to_frameshift * (gene.end - gene.start + 1))])
-    seq_old = Seq(ref_seq[gene.start - 1: gene.end])
-    if len(seq_old) % 3 != 0:
-        print(gene.name + ' wrong annotation')
-        return
-    seq_new = Seq(''.join(seq_new))
-    # if new_len != len(seq_new):
-    #     print('we have a problem!')
-    if gene.strand == 1:
-        translated_old = seq_old.translate()
-        translated_new = seq_new.translate()
-    else:
-        translated_old = seq_old.reverse_complement().translate()
-        translated_new = seq_new.reverse_complement().translate()
-    # alignment = pairwise2.align.globalxx(str(translated_old), str(translated_new))[0]
-    stop = -1
-    for i in range(len(translated_new)):
-        if translated_new[i] == '*':
-            stop = i
-            break
-    if stop == -1 or stop == 0 or len(translated_new) < shortening_threshold * len(translated_old):
-        fout.write(gene.name + '\n')
-        fout.write('reference:\n')
-        fout.write(str(translated_old))
-        fout.write('\nmutated:\n')
-        fout.write(str(translated_new))
-        fout.write('\n')
-        # gene is broken -> FS
-        res.append('\t'.join((gene.type.name, gene.name, '-', '-', '-', 'FS')))
-        return
-    else:
-        align_proteins(translated_old, translated_new)
+class Variant:
+
+    def __init__(self, pos, alt, v_type):
+        self.pos = pos
+        self.alt = alt
+        self.v_type = v_type
+
+    def __eq__(self, other):
+        return self.pos == other.pos and self.v_type == other.v_type
+
+    def __lt__(self, other):
+        if self.pos == other.pos:
+            if self.v_type != 'ins':
+                return True
+            else:
+                return False
+        return self.pos < other.pos
 
 
 def process_gene_with_indels(gene, var_list, ref_seq, res, fout):
@@ -510,23 +532,32 @@ def process_gene_with_indels(gene, var_list, ref_seq, res, fout):
     seq_new = []
     new_len = 0
     s = gene.start - 1
+    # lens = []
+    var_list.sort()
+    vars = []
     for pos, alt, v_type in var_list:
-        if v_type == 'snp':
-            seq_new.append(ref_seq[s: pos - 1])
-            new_len += pos - s
-            seq_new.append(alt)
-            s = pos
-        elif v_type == 'ins':
-            seq_new.append(ref_seq[s: pos])
-            seq_new.append(alt)
-            new_len += pos - s + len(alt)
-            s = pos
+        vars.append(Variant(pos, alt, v_type))
+    vars = sorted(vars)
+    for var in vars:
+        if var.v_type == 'snp':
+            seq_new.append(ref_seq[s: var.pos - 1])
+            seq_new.append(var.alt)
+            new_len += var.pos - s
+            # lens.append(var.pos - s)
+            s = var.pos
+        elif var.v_type == 'ins':
+            seq_new.append(ref_seq[s: var.pos])
+            seq_new.append(var.alt)
+            new_len += var.pos - s + len(var.alt)
+            # lens.append(var.pos - s + len(var.alt))
+            s = var.pos
         else:
             # del
-            if s != pos - 1:
-                seq_new.append(ref_seq[s: pos - 1])
-                new_len += pos - 1 - s
-            s = pos
+            if s != var.pos - 1:
+                seq_new.append(ref_seq[s: var.pos - 1])
+                new_len += var.pos - 1 - s
+                # lens.append(var.pos - 1 - s)
+            s = var.pos
     seq_new.append(ref_seq[s:gene.end])
     new_len += gene.end - s
     if new_len % 3 != 0:
@@ -534,11 +565,12 @@ def process_gene_with_indels(gene, var_list, ref_seq, res, fout):
         #     (gene.type.name, gene.name, '-', '-', '-', 'FS')))
         # continue
         # add some more letters to the end, might be new stop codon
-        seq_new.append(ref_seq[gene.end: gene.end + 3 - new_len % 3 +
-                                         3 * int(add_codons_to_frameshift * (gene.end - gene.start + 1))])
-    else:
-        seq_new.append(ref_seq[gene.end: gene.end +
-                                         3 * int(add_codons_to_frameshift * (gene.end - gene.start + 1))])
+        # seq_new.insert(0, ref_seq[gene.start - additional_codon_num: gene.start])
+        # seq_new.append(ref_seq[gene.end: gene.end + 3 - new_len % 3 + additional_codon_num])
+        if gene.strand == 1:
+            seq_new.append(ref_seq[gene.end: gene.end + 3 - new_len % 3])
+        else:
+            seq_new.insert(0, ref_seq[gene.start - (3 - new_len % 3): gene.start])
     seq_old = Seq(ref_seq[gene.start - 1: gene.end])
     if len(seq_old) % 3 != 0:
         print(gene.name + ' wrong annotation')
@@ -556,7 +588,7 @@ def process_gene_with_indels(gene, var_list, ref_seq, res, fout):
     start = -1
     stop = -1
     for i in range(len(translated_new)):
-        if start == -1 and translated_new[i] == 'M':
+        if start == -1 and (translated_new[i] == translated_old[0] or translated_new[i] == 'M'):
             start = i
         if translated_new[i] == '*':
             stop = i
@@ -565,8 +597,15 @@ def process_gene_with_indels(gene, var_list, ref_seq, res, fout):
         fout.write(gene.name + '\n')
         fout.write('reference:\n')
         fout.write(str(translated_old))
-        fout.write('\nmutated:\n')
+        fout.write('\nmutated_extended:\n')
         fout.write(str(translated_new))
+        fout.write('\nmutated_start-end:\n')
+        if start == -1:
+            fout.write('no start')
+        elif stop == -1:
+            fout.write('no stop')
+        else:
+            fout.write(str(translated_new[start:stop]))
         fout.write('\n')
         # gene is broken -> FS
         res.append('\t'.join((gene.type.name, gene.name, '-', '-', '-', 'FS')))
@@ -605,7 +644,7 @@ def format_variants(sample_id, variants, ref_seq, ref_seq_compl, snp_to_cds):
             append_dels(res, deletions, ref_seq, ref_seq_compl)
 
         # working with protein coding genes
-        with open(debug_path + sample_id + '.genes', 'w') as fout:
+        with open(broken_genes_path + sample_id + '.genes', 'w') as fout:
             for gene_name, var_list in genes_to_variants.items():
                 snp_only = True
                 for pos, alt, v_type in var_list:
@@ -630,8 +669,8 @@ def main():
     # mp.set_start_method('forkserver')
     if not exists(out_path):
         makedirs(out_path)
-    if not exists(debug_path):
-        makedirs(debug_path)
+    if not exists(broken_genes_path):
+        makedirs(broken_genes_path)
     sample_to_snps = {}
     all_snp_pos = set()
     h37rv = read_h37rv()
@@ -653,9 +692,9 @@ def main():
     snp_to_cds = localize_all_variants(all_snps, cds_list)
     print('done with variant localization')
 
-    tasks = Parallel(n_jobs=thread_num, batch_size=len(sample_ids)//thread_num + 1)(
+    tasks = Parallel(n_jobs=thread_num)(# , batch_size=len(sample_ids)//thread_num + 1
         delayed(format_variants)(sample_id, variants, h37rv, h37rv_compl, snp_to_cds)
-        for sample_id, variants in sample_to_snps.items())
+        for sample_id, variants in sample_to_snps.items() if not exists(out_path + sample_id + '.variants'))
     formatted_snps = {sample_id: variants for sample_id, variants in tasks}
     print('done with variant format')
 

@@ -11,14 +11,16 @@ from core.data_reading import read_h37rv
 use_list = True
 # path_to_ids = data_path + 'all_with_pheno.txt'
 path_to_ids = data_path + '10drugs.sample_list'
-path_to_snps = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_mc10/'
+# path_to_snps = data_path + 'snps/raw_with_DR_with_indel_with_pheno_and_snp_mc10/'
+path_to_snps = data_path + 'snps/gatk_before_cortex/raw_variants_filtered/'
 # out_path_aln = data_path + 'codon_aln_with_DR_with_indel_with_pheno_and_snp_mc10.fasta'
-out_path_aln = data_path + 'codon_aln_with_DR_mc10_10drugs_rep.fasta'
-# out_path_snp_to_genes = data_path + \
-#     'codon_aln_with_DR_with_indel_with_pheno_and_snp_mc10.coords'
-out_path_snp_to_genes = data_path + \
-    'codon_aln_with_DR_mc10_10drugs_rep.coords'
-out_path_codon_alns = data_path + 'codon_aln_rep/'
+# out_path_aln = data_path + 'codon_aln_with_DR_mc10_10drugs_rep.fasta'
+out_path_aln = data_path + 'codon_aln_with_DR_mc10_10drugs_gatk.fasta'
+# out_path_snp_to_genes = data_path + 'codon_aln_with_DR_with_indel_with_pheno_and_snp_mc10.coords'
+# out_path_snp_to_genes = data_path + 'codon_aln_with_DR_mc10_10drugs_rep.coords'
+out_path_snp_to_genes = data_path + 'codon_aln_with_DR_mc10_10drugs_gatk.coords'
+# out_path_codon_alns = data_path + 'codon_aln_rep/'
+out_path_codon_alns = data_path + 'codon_aln_gatk/'
 
 # path_to_pheno_and_trees = data_path + 'reconstructed_mc10_mega_MP/'
 path_to_high_mut_genes = '../../res/tree_was/mc10_mega_MP_RR_filter/upper.filtered_fdr0.1_pvalue0.05.genes.csv'
@@ -31,12 +33,15 @@ drug_names = ('Isoniazid', 'Rifampicin', 'Ethambutol', 'Pyrazinamide', 'Streptom
 
 def read_snps(sample_id):
     snps = {}
-    with open(path_to_snps + sample_id + '.variants', 'r') as f1:
-        lines = f1.readlines()
-        for line in lines:
-            s = line.strip().split('\t')
-            if s[-1] == 'snp':
-                snps[int(s[0])] = s[1]
+    if not exists(path_to_snps + sample_id + '.variants'):
+        print('no such sample: ' + sample_id)
+    else:
+        with open(path_to_snps + sample_id + '.variants', 'r') as f1:
+            lines = f1.readlines()
+            for line in lines:
+                s = line.strip().split('\t')
+                if s[-1] == 'snp':
+                    snps[int(s[0])] = s[1]
     return sample_id, snps
 
 
@@ -124,15 +129,7 @@ def print_aln_for_all_samples():
             f.write('\n')
 
 
-def print_aln_for_drug(drug, samples, genes, sample_to_snps, snp_to_cds, h37rv, suffix):
-    all_snp_pos = set()
-    for sample_id in samples:
-        snps = sample_to_snps[sample_id]
-        for snp_pos in snps.keys():
-            all_snp_pos.add(snp_pos)
-    all_snps = list(all_snp_pos)
-    all_snps.sort()
-
+def print_aln_for_drug(drug, all_snps, genes, sample_to_snps, snp_to_cds, h37rv, suffix):
     snps_in_genes = []
     pos_in_triplet = []
     last_pos = -1
@@ -216,10 +213,12 @@ def print_aln_for_all_drugs():
                                 for sample_id in sample_ids)
     all_snp_pos = set()
     for sample_id, snps in tasks:
-        sample_to_snps[sample_id] = snps
-        for snp_pos in snps.keys():
-            all_snp_pos.add(snp_pos)
+        if len(snps) != 0:
+            sample_to_snps[sample_id] = snps
+            for snp_pos in snps.keys():
+                all_snp_pos.add(snp_pos)
     all_snps = list(all_snp_pos)
+    all_snps.sort()
 
     snp_to_cds = localize_all_variants(all_snps, cds)
 
@@ -228,13 +227,13 @@ def print_aln_for_all_drugs():
         s = l.strip().split('\t')
         drug_to_gene_set[s[0]].add(s[1])
     for drug in drug_names:
-        print_aln_for_drug(drug, sample_ids, drug_to_gene_set[drug], sample_to_snps, snp_to_cds, h37rv, '_high')
+        print_aln_for_drug(drug, all_snps, drug_to_gene_set[drug], sample_to_snps, snp_to_cds, h37rv, '_high')
     drug_to_gene_set = {drug: set() for drug in drug_names}
     for l in open(path_to_low_mut_genes).readlines():
         s = l.strip().split('\t')
         drug_to_gene_set[s[0]].add(s[1])
     for drug in drug_names:
-        print_aln_for_drug(drug, sample_ids, drug_to_gene_set[drug], sample_to_snps, snp_to_cds, h37rv, '_low')
+        print_aln_for_drug(drug, all_snps, drug_to_gene_set[drug], sample_to_snps, snp_to_cds, h37rv, '_low')
 
 
 if __name__ == '__main__':

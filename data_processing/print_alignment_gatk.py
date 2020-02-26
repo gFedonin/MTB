@@ -1,17 +1,63 @@
+from bisect import bisect_left
 from os import listdir
 
-from Bio import SeqIO
 from sklearn.externals.joblib import Parallel, delayed
 
-from src.core.constants import data_path
-from src.core.data_reading import read_h37rv
+from core.annotations import path_to_annotations
+from core.constants import data_path, dr_genes, upstream_length
+from core.data_reading import read_h37rv
 
-path_to_snps = data_path + 'snps/gatk_before_cortex/raw_variants/'
-out_path_aln = data_path + 'gatk_before_cortex.fasta'
-out_path_snps = data_path + 'gatk_before_cortex_snps.txt'
+path_to_snps = data_path + 'snps/combined_raw_variants_mq40_keep_complex_std_names_filtered/'
+path_to_ids = data_path + 'combined_no_dup_with_pheno.list'
+out_path_aln = data_path + 'combined_mq40_keep_complex_std_names_filtered_no_DR.fasta'
+out_path_snps = data_path + 'combined_mq40_keep_complex_std_names_filtered_no_DR.snp_list'
 path_to_mummer = data_path + 'mummer1.aligns'
 
-thread_num = 32
+thread_num = 144
+
+filter_out_DR_genes = True
+filter_out_PGRS = True
+filter_out_recombination_hotspots = True
+path_to_recombination_hotspots = data_path + 'list_of_recombining_genes.txt'
+
+
+def get_intervals_to_filter_out():
+    """
+    Reads annotations and picks coordinates of DR genes.
+
+    :param filter_out_DR_genes: if True adds coordinates of DR genes from list of DR genes to the results
+    :param filter_short_repeats: if True adds coordinates of short tandem repeats to the result
+    :return: list of tuples (begin, end), representing intervals
+    """
+    recombining_genes = set(l.strip() for l in open(path_to_recombination_hotspots).readlines())
+    coords = []
+    with open(path_to_annotations, 'r') as f:
+        for line in f.readlines():
+            s = line.strip().split('\t')
+            if s[2] == 'Gene':
+                strand = s[6]
+                if filter_out_DR_genes:
+                    for gene_name in dr_genes:
+                        if gene_name in s[-1]:
+                            if strand == '+':
+                                coords.append((int(s[3]) - upstream_length, int(s[4])))
+                            else:
+                                coords.append((int(s[3]), int(s[4]) + upstream_length))
+                if filter_out_PGRS:
+                    if 'PGRS' in s[-1] or 'PE' in s[-1]:
+                        if strand == '+':
+                            coords.append((int(s[3]) - upstream_length, int(s[4])))
+                        else:
+                            coords.append((int(s[3]), int(s[4]) + upstream_length))
+                if filter_out_recombination_hotspots:
+                    for gene_name in recombining_genes:
+                        if gene_name in s[-1]:
+                            if strand == '+':
+                                coords.append((int(s[3]) - upstream_length, int(s[4])))
+                            else:
+                                coords.append((int(s[3]), int(s[4]) + upstream_length))
+    coords.sort(key=lambda tup: tup[0])
+    return coords
 
 
 def parse_mummer():
@@ -97,16 +143,43 @@ def h37rv_to_canetti(aln, pos):
     return ''
 
 
-def read_snps(fname):
-    sample_id = fname[0: fname.rfind('.variants')]
+def read_snps(sample_id, filter_intervals):
+    # sample_id = fname[0: fname.rfind('.variants')]
     variants = {}
-    with open(path_to_snps + fname) as f1:
+    filter_intervals_starts = [x[0] for x in filter_intervals]
+    with open(path_to_snps + sample_id + '.variants') as f1:
         for line in f1.readlines():
             if line[0] == '#':
                 continue
             s = line.strip().split('\t')
-            if int(s[-1]) == 1:
-                variants[int(s[0])] = s[1]
+            if len(s[-1]) == 1 and len(s[-2]) == 1:
+                pos = int(s[0])
+                inside_filtered_interval = False
+                i = bisect_left(filter_intervals_starts, pos)
+                if i == 0:
+                    if pos == filter_intervals_starts[0]:
+                        inside_filtered_interval = True
+                else:
+                    if i < len(filter_intervals) and filter_intervals_starts[i] == pos:
+                        inside_filtered_interval = True
+                    elif pos <= filter_intervals[i - 1][1]:
+                        inside_filtered_interval = True
+                if not inside_filtered_interval:
+                    variants[pos] = s[2]
+    return sample_id, variants
+
+
+def read_snps_no_filter(sample_id):
+    # sample_id = fname[0: fname.rfind('.variants')]
+    variants = {}
+    with open(path_to_snps + sample_id + '.variants') as f1:
+        for line in f1.readlines():
+            if line[0] == '#':
+                continue
+            s = line.strip().split('\t')
+            if len(s[-1]) == 1 and len(s[-2]) == 1:
+                pos = int(s[0])
+                variants[pos] = s[2]
     return sample_id, variants
 
 
@@ -114,7 +187,8 @@ def main():
     sample_to_snps = {}
     all_snp_pos = set()
 
-    fnames = [fname for fname in listdir(path_to_snps)]
+    sample_ids = [l.strip() for l in open(path_to_ids).readlines()]
+    # fnames = [fname for fname in listdir(path_to_snps) if fname.endswith('.variants')]
 
     h37rv = read_h37rv()
 
@@ -122,8 +196,13 @@ def main():
     aln = preprocess_aln(aln)
     print('mummer parsed')
 
-    tasks = Parallel(n_jobs=thread_num, batch_size=len(
-        fnames)//thread_num + 1)(delayed(read_snps)(fname) for fname in fnames)
+    if filter_out_DR_genes:
+        filter_intervals = get_intervals_to_filter_out()
+        tasks = Parallel(n_jobs=-1)(delayed(read_snps)(sample_id, filter_intervals) for sample_id in sample_ids)
+    else:
+        tasks = Parallel(n_jobs=-1)(delayed(read_snps_no_filter)(sample_id) for sample_id in sample_ids)
+
+
     for sample_id, snps in tasks:
         sample_to_snps[sample_id] = snps
         for pos, alt in snps.items():

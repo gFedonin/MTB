@@ -8,17 +8,24 @@ from sklearn.externals.joblib import Parallel, delayed
 from core.constants import data_path, ref_len
 from core.data_reading import read_all_variants
 
-path_to_ids = data_path + 'all_with_pheno.txt'
-path_to_snps = data_path + 'snps/gatk_before_cortex/raw_variants_fixed_no_rep_gatk/'
+path_to_ids = data_path + 'big_filtered.list'
+# path_to_ids = data_path + 'all_with_pheno.txt'
+# path_to_snps = data_path + 'snps/gatk_before_cortex/raw_variants_fixed_no_rep_gatk/'
+# path_to_snps = data_path + 'snps/gatk_before_cortex/raw_variants_mq40_keep_complex/'
+# path_to_snps = data_path + 'snps/pilon/raw_variants/'
+path_to_snps = data_path + 'snps/combined_raw_variants_mq40_keep_complex_std_names/'
 
-out_path = data_path + 'snps/gatk_before_cortex/raw_variants_filtered/'
+# out_path = data_path + 'snps/gatk_before_cortex/raw_variants_mq40_keep_complex_filtered/'
+# out_path = data_path + 'snps/pilon/raw_variants_mq40_filtered/'
+out_path = data_path + 'snps/combined_raw_variants_mq40_keep_complex_std_names_filtered/'
 
 out_path_variants = out_path + 'filtered_raw_variants_pos.csv'
 out_path_variants_with_low_cov = out_path + 'low_covered_raw_variants_pos.csv'
 out_path_filtered_samples = out_path + 'samples_filtered.list'
 out_path_samplies_with_low_coverage = out_path + 'samples_low_covered.list'
 
-path_to_depths = data_path + 'coverages_shrinked/'
+# path_to_depths = data_path + 'coverages_shrinked/'
+path_to_depths = data_path + 'combined_coverages/'
 
 variant_cov_threshold = 10
 sample_cov_threshold = 0.9
@@ -54,18 +61,6 @@ def compute_variants_coverage(sample_id, all_variants_pos_list):
 
 
 def read_all_data(sample_ids):
-    """
-    Reads and filters variants based on coverages for given list of sample ids
-
-    :param sample_ids: list of sample ids
-    :param filter_overcovered_positions: if True, only variants with cov <= coverage_std_multiplier*std_coverage will be kept
-    :param coverage_std_multiplier: defines the upper threshold on coverage
-    :param snp_only: if True, only variants with type == 'snp' will be kept
-    :param filter_out_DR_genes: if True filters out variants inside the list of DR genes
-    :param filter_by_window_coverage: if True, apply window based filters
-    :param filter_by_window_genes_only: if True, apply window based filters only to protein coding genes
-    :return: sample to variants map, list of all variant positions, sample to coverage map
-    """
 
     sample_to_variants = read_all_variants(path_to_snps, sample_ids)
     all_snp_pos = set()
@@ -80,11 +75,12 @@ def read_all_data(sample_ids):
         sample_to_vars[sample_id] = vars
     all_variants_pos_list = list(all_snp_pos)
     all_variants_pos_list.sort()
+    print('variant reading done')
 
 
     tasks = Parallel(n_jobs=thread_num)(delayed(compute_variants_coverage)(sample_id, all_variants_pos_list)
                                         for sample_id in sample_ids)
-
+    print('coverages done')
     sample_to_cov = {}
 
     for sample_id, is_properly_covered in tasks:
@@ -104,6 +100,7 @@ def main():
 
     sample_to_variants, all_variants_pos_list, sample_to_cov, all_filtered_variant_poses = read_all_data(sample_ids)
     variant_pos_num = len(all_variants_pos_list)
+    print('reading is done')
 
     uncovered_variant_pos = set(pos for pos in all_variants_pos_list if pos not in all_filtered_variant_poses)
     uncovered_samples = set()
@@ -118,6 +115,8 @@ def main():
                 pos_counts[pos] = c + 1
 
     while len(uncovered_samples) < sample_num and len(uncovered_variant_pos) < variant_pos_num:
+        print('low covered variants %d' % len(uncovered_variant_pos))
+        print('low covered samples %d' % len(uncovered_samples))
         filtered_variant_pos_num = variant_pos_num - len(uncovered_variant_pos)
         if filtered_variant_pos_num == 0:
             break

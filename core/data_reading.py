@@ -102,11 +102,7 @@ def read_variants(path_to_variants, sample_id, filter_set=None, keep_type=True):
 
 def read_all_variants(path_to_variants, sample_ids, filter_set=None, keep_type=True, thread_num=-1):
     sample_to_variants = {}
-    if thread_num == -1:
-        tasks = Parallel(n_jobs=-1)(delayed(read_variants)(path_to_variants, sample_id, filter_set, keep_type)
-                                    for sample_id in sample_ids)
-    else:
-        tasks = Parallel(n_jobs=thread_num, batch_size=len(sample_ids)//thread_num + 1)(delayed(read_variants)(path_to_variants, sample_id, filter_set, keep_type)
+    tasks = Parallel(n_jobs=thread_num)(delayed(read_variants)(path_to_variants, sample_id, filter_set, keep_type)
                                     for sample_id in sample_ids)
     for sample_id, var_list in tasks:
         sample_to_variants[sample_id] = var_list
