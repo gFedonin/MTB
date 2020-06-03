@@ -2,23 +2,31 @@ import pandas as pd
 from ete3 import Tree
 from os.path import exists
 
-from os import makedirs
+from os import makedirs, listdir
 from sklearn.externals.joblib import Parallel, delayed
 
-from src.core.constants import data_path
+from core.constants import data_path
 
-path_to_tree = data_path + 'tree_with_pheno_and_snp_mc5_mega_rooted.nw'
-path_to_phenotypes = data_path + 'dr_covered_with_pheno_and_snp.csv'
-out_tree = data_path + 'trees_mc5_mega/'
-out_pheno = data_path + 'pheno_mc5_mega/'
+# path_to_tree = data_path + 'tree_with_pheno_and_snp_mc5_mega_rooted.nw'
+path_to_tree = data_path + '/iqtree_with_indels/combined_mq40_keep_complex_std_names_filtered_no_DR_partitions_rooted.nw'
+# path_to_phenotypes = data_path + 'dr_covered_with_pheno_and_snp.csv'
+path_to_phenotypes = data_path + 'combined_phenotypes_filtered.csv'
+# out_tree = data_path + 'trees_mc5_mega/'
+out_tree = data_path + 'trees_combined_with_indels/'
+# out_pheno = data_path + 'pheno_mc5_mega/'
+out_pheno = data_path + 'pheno_combined/'
 
 no_missing_values = True
 
 
 def prune(sample_ids, drug):
     t = Tree(path_to_tree)
+    samples_in_tree = set()
+    for node in t.traverse("postorder"):
+        samples_in_tree.add(node.name)
     # t.set_outgroup('canetti')
-    t.prune(sample_ids)
+    sample_ids_filtered = [sid for sid in sample_ids if sid in samples_in_tree]
+    t.prune(sample_ids_filtered)
     t.write(format=1, outfile=out_tree + drug + ".nw")
     return 0
 
@@ -121,11 +129,49 @@ def process_pheno():
     return drug_samples_pairs
 
 
+def merge_pheno():
+    path_to_pheno = data_path + 'combined_pheno/'
+    sample_to_pheno = {}
+    all_drugs = []
+    for fname in listdir(path_to_pheno):
+        drug = fname[:-6]
+        all_drugs.append(drug)
+        for l in open(path_to_pheno + fname).readlines():
+            s = l.strip().split('\t')
+            if s[1] == '0':
+                pheno = 'S'
+            else:
+                pheno = 'R'
+            drug_to_pheno = sample_to_pheno.get(s[0])
+            if drug_to_pheno is None:
+                sample_to_pheno[s[0]] = {drug: pheno}
+            else:
+                drug_to_pheno[drug] = pheno
+    t = Tree(path_to_tree)
+    samples_in_tree = set()
+    for node in t.traverse("postorder"):
+        samples_in_tree.add(node.name)
+    with open(path_to_phenotypes, 'w') as f:
+        f.write('Organism_name\t' + '\t'.join(all_drugs) + '\n')
+        for sample, drug_to_pheno in sample_to_pheno.items():
+            if sample not in samples_in_tree:
+                continue
+            f.write(sample)
+            for drug in all_drugs:
+                pheno = drug_to_pheno.get(drug)
+                if pheno is None:
+                    f.write('\t-')
+                else:
+                    f.write('\t' + pheno)
+            f.write('\n')
+
+
 def main():
     if not exists(out_tree):
         makedirs(out_tree)
     if not exists(out_pheno):
         makedirs(out_pheno)
+    merge_pheno()
     drug_samples_pairs = process_pheno()
     tasks = Parallel(n_jobs=-1)(delayed(prune)(sample_ids, drug) for drug, sample_ids in drug_samples_pairs)
     c = 0

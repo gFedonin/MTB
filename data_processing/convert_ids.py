@@ -4,7 +4,7 @@ from subprocess import check_call, call
 
 from core.constants import data_path
 
-data_set = 'patric'
+data_set = 'casali14'
 # data_set = 'missing'
 # data_set = 'combined_nocoll'
 path_to_list_in = data_path + data_set + '/' + data_set + '.list'

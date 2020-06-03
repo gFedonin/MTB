@@ -495,7 +495,7 @@ def gen_raw_variants(sample_id, ref_seq):
     with open(fasta_path + sample_id + '.fasta', 'w') as f:
         f.write('>' + sample_id + '\n')
         f.write(mut_str + '\n')
-    cmd = path_to_minimap + ' -ax asm5 ' + path_to_ref + ' ' + fasta_path + sample_id + '.fasta | samtools sort - | samtools view -bS - > ' + bam_path + \
+    cmd = path_to_minimap + ' -ax asm5 ' + path_to_ref + ' ' + fasta_path + sample_id + '.fasta | samtools sort - > ' + bam_path + \
           sample_id + '.bam'
     check_call(cmd, shell=True)
     check_call('samtools index ' + bam_path + sample_id + '.bam', cwd=bam_path, shell=True)

@@ -15,6 +15,7 @@ out_sample_ids = data_path + '10drugs.sample_list'
 drug_names = ('Isoniazid', 'Rifampicin', 'Ethambutol', 'Pyrazinamide', 'Streptomycin', 'Moxifloxacin', 'Ofloxacin',
               'Amikacin', 'Capreomycin', 'Kanamycin')
 
+
 def process_pheno():
     all_pheno = pd.read_csv(path_to_phenotypes, sep='\t')
     for drug in all_pheno.columns[1:]:

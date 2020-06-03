@@ -1,4 +1,4 @@
-from os import system, makedirs
+from os import system, makedirs, listdir
 from os.path import exists
 from subprocess import check_call, call
 
@@ -12,6 +12,7 @@ dataFolder = data_path + data_set + '/' + data_set + '_raw/'
 # dataFolder = '/export/data/kkuleshov/myc/sra/'
 # outFolder = data_path + 'walker18/walker18_trimmed/'
 outFolder = data_path + data_set + '/' + data_set + '_trimmed/'
+# outFolder = data_path + data_set + '/' + 'test/'
 # outFolder = data_path + 'coll18/coll18_trimmed_bbduk_q30/'
 # outFolder = data_path + 'kkuleshov_bbduk_q30/'
 # listPath = data_path + 'walker18/downloaded.list'
@@ -38,7 +39,9 @@ overwrite = False
 
 
 def trim_sample(name):
-    if not exists(outFolder + name):
+    if exists(outFolder + name):
+        call('rm ' + name + '*', shell=True, cwd=outFolder + name)
+    else:
         makedirs(outFolder + name)
     if exists(dataFolder + name + suffix1) and exists(dataFolder + name + suffix2):
         if clipQ30:
@@ -76,9 +79,19 @@ def trim_sample(name):
 def trim_all():
     if not exists(outFolder):
         makedirs(outFolder)
-    tasks = Parallel(n_jobs=sample_in_parallel)(delayed(trim_sample)(l.strip()) for l in open(listPath).readlines()
-                                                if exists(dataFolder + l.strip() + suffix1) and
-                                                not exists(outFolder + l.strip() + '/' + l.strip() + "_p1.fastq.gz"))
+    trimmed = set(l for l in listdir(outFolder))
+    raw = set(l for l in listdir(dataFolder))
+    samples_to_trim = []
+    for l in open(listPath).readlines():
+        sample_id = l.strip()
+        if sample_id + suffix1 in raw:
+            if sample_id not in trimmed:
+                samples_to_trim.append(sample_id)
+            else:
+                if not exists(outFolder + sample_id + '/' + sample_id + "_p1.fastq.gz") or not exists(outFolder +
+                                                                    sample_id + '/' + sample_id + "_p2.fastq.gz"):
+                    samples_to_trim.append(sample_id)
+    tasks = Parallel(n_jobs=sample_in_parallel)(delayed(trim_sample)(sample_id) for sample_id in samples_to_trim)
     c = 0
     for task in tasks:
         c += task

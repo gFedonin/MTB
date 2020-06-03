@@ -1,6 +1,6 @@
 from ete3 import Tree
 
-from src.core.constants import data_path
+from core.constants import data_path
 
 path_to_tree = data_path + 'tree_with_pheno_and_snp_mc5_mega_rooted.nw'
 path_to_sample_ids = data_path + 'dr_covered_with_pheno_and_snp.txt'

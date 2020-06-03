@@ -1,3 +1,4 @@
+from os import listdir
 from os.path import exists
 
 from Bio import SeqIO
@@ -43,6 +44,15 @@ def read_pheno(path_to_pheno, drug):
             i = line.find('\t')
             sample_id_to_pheno.append((line[:i], int(line[i + 1:])))
     return drug, sample_id_to_pheno
+
+
+def read_all_pheno(path_to_pheno):
+    drug_to_pheno = {}
+    for fname in listdir(path_to_pheno):
+        drug = fname[:-len('.pheno')]
+        drug, sample_id_to_pheno = read_pheno(path_to_pheno, drug)
+        drug_to_pheno[drug] = sample_id_to_pheno
+    return drug_to_pheno
 
 
 def read_dict(path_to_dict: 'str', name: 'str')->'tuple[str, dict[str, list[str]]]':

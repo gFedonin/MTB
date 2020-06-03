@@ -38,7 +38,7 @@ raw_suffix2 = '_p2.fastq.gz'
 suffix = '_h37rv'
 # suffix = ''
 
-thread_num = '9'
+thread_num = '8'
 
 
 # def smalt(id):
@@ -117,7 +117,7 @@ mapper = bwa_mem
 if __name__ == '__main__':
     if not exists(out_path):
         makedirs(out_path)
-    tasks = Parallel(n_jobs=16)(delayed(mapper)(l.strip()) for l in open(path_to_list, 'r').readlines()
+    tasks = Parallel(n_jobs=4)(delayed(mapper)(l.strip()) for l in open(path_to_list, 'r').readlines()
                                if not exists(out_path + l.strip() + suffix + '.bam'))
     c = 0
     for task in tasks:

@@ -4,6 +4,8 @@ from os.path import exists
 from core.constants import data_path
 
 # path_to_pheno_csv = data_path + 'coll18/pheno.csv'
+from core.data_reading import read_all_pheno
+
 path_to_pheno_csv = data_path + 'phenotypes.csv'
 # out_path = data_path + 'coll18/pheno/'
 out_path = data_path + 'combined_pheno/'
@@ -148,8 +150,59 @@ def convert_farhat():
             f.write('\t'.join(pheno) + '\n')
 
 
+path_to_dup = data_path + 'dup_snp_noDR.list'
+path_to_pheno = data_path + 'combined_pheno/'
+path_to_list_to_filter = data_path + 'combined_no_dup_with_pheno.list'
+path_to_undup_list = data_path + 'combined_no_dup_snp_with_pheno.list'
+path_to_best_in_clusters = data_path + 'best_in_clusters.list'
+
+
+def filter_duplicates():
+    clusters = []
+    centroid = None
+    cluster = None
+    duplicates = set()
+    for l in open(path_to_dup).readlines():
+        s = l.strip().split(' ')
+        if centroid != s[0]:
+            if s[0] not in duplicates:
+                centroid = s[0]
+                cluster = s
+                clusters.append(cluster)
+                duplicates.update(s)
+        else:
+            cluster.append(s[1])
+            duplicates.add(s[1])
+
+    drug_to_pheno = read_all_pheno(path_to_pheno)
+    drug_to_samples = {}
+    drug_to_counts = []
+    for drug, sample_to_pheno in drug_to_pheno.items():
+        sample_set = {sample for sample, pheno in sample_to_pheno}
+        drug_to_samples[drug] = sample_set
+        drug_to_counts.append((drug, len(sample_set)))
+    drug_to_counts.sort(key=lambda x: x[1])
+    with open(path_to_best_in_clusters, 'w') as f:
+        for cluster in clusters:
+            best = cluster[0]
+            best_drugs = {drug for drug, sample_set in drug_to_samples.items() if best in sample_set}
+            for candidate in cluster[1:]:
+                for drug, count in drug_to_counts:
+                    if candidate in drug_to_samples[drug] and drug not in best_drugs:
+                        best = candidate
+                        best_drugs = {drug for drug, sample_set in drug_to_samples.items() if best in sample_set}
+                        break
+            duplicates.remove(best)
+            f.write(best + '\n')
+    with open(path_to_undup_list, 'w') as f:
+        for l in open(path_to_list_to_filter).readlines():
+            if l.strip() not in duplicates:
+                f.write(l)
+
+
 if __name__ == '__main__':
-    split_pheno()
+    # split_pheno()
     # merge_pheno()
     # parse_walker()
     # convert_farhat()
+    filter_duplicates()

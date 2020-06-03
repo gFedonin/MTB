@@ -15,12 +15,16 @@ path_to_var = data_path + 'snps/combined_raw_variants_mq40_keep_complex_std_name
 # path_to_var = data_path + 'snps/annotated_with_DR_with_indel_with_pheno_and_snp_no_win_qual_mqm_std3_mqm30_no_highcov_long_del_pg_NWds10/'
 # path_to_ids = data_path + 'all_with_pheno.txt'
 path_to_ids = data_path + 'snps/combined_raw_variants_mq40_keep_complex_std_names_filtered/samples_filtered.list'
+
+path_to_outliers = data_path + 'outliers.nw'
+
 # out_path = '../../res/ml_log_mc3_gatk_before_std2/var.counts'
 # out_path = '../../res/ml_log_mc3_gatk_before_std3/var.counts'
 # out_path = '../../res/base_dataset_var.counts'
 # out_path = '../../res/base_dataset_new_var.counts'
 # out_path = '../../res/full_dataset_new_var.counts'
-out_path = '../../res/full_dataset_raw_5plus.counts'
+# out_path = '../../res/full_dataset_raw_5plus.counts'
+out_path = '../../res/full_dataset_raw_1plus_no_outliers.counts'
 
 
 def count_unique():
@@ -48,10 +52,13 @@ def count_unique():
 
 
 filter_by_count = True
-min_count = 5
+min_count = 1
 
 
-def print_all_counts():
+def print_all_counts(path_to_exclude=None):
+    outliers = None
+    if path_to_exclude is not None:
+        outliers = open(path_to_exclude).readline()
     sample_ids = [name.strip() for name in open(path_to_ids).readlines()]
     print(str(len(sample_ids)) + ' samples')
 
@@ -60,6 +67,8 @@ def print_all_counts():
 
     mut_counts = {}
     for sample_id, l in tasks:
+        if outliers is not None and sample_id in outliers:
+            continue
         for snp in l:
             c = mut_counts.get(snp)
             if c is None:
@@ -248,8 +257,8 @@ def dist_matrix():
 
 if __name__ == '__main__':
     # count_unique()
-    # print_all_counts()
-    count_mut_in_samples()
+    print_all_counts(path_to_outliers)
+    # count_mut_in_samples()
     # filter_counts_by_dict()
     # count_ppe_genes_in_anotatations()
     # find_duplicates()

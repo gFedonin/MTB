@@ -1,5 +1,6 @@
 from bisect import bisect_left
 from os import listdir
+from os.path import exists
 
 from sklearn.externals.joblib import Parallel, delayed
 
@@ -8,16 +9,19 @@ from core.constants import data_path, dr_genes, upstream_length
 from core.data_reading import read_h37rv
 
 path_to_snps = data_path + 'snps/combined_raw_variants_mq40_keep_complex_std_names_filtered/'
-path_to_ids = data_path + 'combined_no_dup_with_pheno.list'
-out_path_aln = data_path + 'combined_mq40_keep_complex_std_names_filtered_no_DR.fasta'
-out_path_snps = data_path + 'combined_mq40_keep_complex_std_names_filtered_no_DR.snp_list'
+path_to_ids = data_path + 'combined_no_dup_snp_with_pheno.list'
+# path_to_ids = data_path + 'casali14.list'
+out_path_aln = data_path + 'combined_mq40_keep_complex_std_names_filtered_with_DR.fasta'
+# out_path_aln = data_path + 'casali.fasta'
+out_path_snps = data_path + 'combined_mq40_keep_complex_std_names_filtered_with_DR.snp_list'
+# out_path_snps = data_path + 'casali.snp_list'
 path_to_mummer = data_path + 'mummer1.aligns'
 
-thread_num = 144
+thread_num = 141
 
-filter_out_DR_genes = True
-filter_out_PGRS = True
-filter_out_recombination_hotspots = True
+filter_out_DR_genes = False
+filter_out_PGRS = False
+filter_out_recombination_hotspots = False
 path_to_recombination_hotspots = data_path + 'list_of_recombining_genes.txt'
 
 
@@ -198,9 +202,11 @@ def main():
 
     if filter_out_DR_genes:
         filter_intervals = get_intervals_to_filter_out()
-        tasks = Parallel(n_jobs=-1)(delayed(read_snps)(sample_id, filter_intervals) for sample_id in sample_ids)
+        tasks = Parallel(n_jobs=-1)(delayed(read_snps)(sample_id, filter_intervals) for sample_id in sample_ids
+                                    if exists(path_to_snps + sample_id + '.variants'))
     else:
-        tasks = Parallel(n_jobs=-1)(delayed(read_snps_no_filter)(sample_id) for sample_id in sample_ids)
+        tasks = Parallel(n_jobs=-1)(delayed(read_snps_no_filter)(sample_id) for sample_id in sample_ids
+                                    if exists(path_to_snps + sample_id + '.variants'))
 
 
     for sample_id, snps in tasks:
